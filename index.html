@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>TOUCH</title>
+    <style>
+        :root { --bg-color: #000; --text-color: #fff; --accent-color: #ff3b30; }
+        body { margin: 0; padding: 0; background: var(--bg-color); color: var(--text-color); font-family: -apple-system, sans-serif; overflow: hidden; -webkit-user-select: none; user-select: none; }
+        
+        .screen { display: none; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; flex-direction: column; align-items: center; justify-content: center; }
+        .screen.active { display: flex; }
+
+        /* HOME */
+        h1 { font-size: 4.5rem; font-weight: 900; letter-spacing: 0.2em; margin: 0 0 2rem 0.2em; }
+        
+        /* UI Components */
+        .btn { background: #1c1c1e; color: #fff; border: 1px solid #3a3a3c; padding: 20px; font-size: 1.1rem; border-radius: 14px; margin: 10px; cursor: pointer; width: 85%; max-width: 320px; -webkit-tap-highlight-color: transparent; }
+        .btn-accent { background: var(--accent-color); border: none; font-weight: bold; }
+        .btn:active { background: #3a3a3c; transform: scale(0.98); }
+        .btn-accent:active { background: #cc2f26; }
+
+        /* CAMERA */
+        #camera-container { width: 100%; height: 75%; background: #000; position: relative; }
+        video { width: 100%; height: 100%; object-fit: cover; }
+        canvas { display: none; } /* 撮影処理用 */
+        .guide { position: absolute; background: rgba(255,255,255,0.4); pointer-events: none; }
+        .v-line { width: 1px; height: 100%; left: 50%; top: 0; }
+        .h-line { width: 100%; height: 1px; top: 50%; left: 0; }
+        
+        .controls { width: 100%; height: 25%; display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; background: #000; padding-bottom: env(safe-area-inset-bottom); }
+        #shutter { width: 72px; height: 72px; border-radius: 50%; background: #fff; border: 5px solid #333; }
+        #shutter:active { transform: scale(0.9); background: #ccc; }
+        .nav-row { display: flex; width: 90%; justify-content: space-between; }
+        .nav-row .btn { width: 46%; margin: 0; padding: 12px; font-size: 0.9rem; }
+
+        /* VIEWER */
+        #viewer-area { width: 100%; height: 85%; position: relative; background: #000; display: flex; align-items: center; justify-content: center; touch-action: none; }
+        #viewer-img { max-width: 100%; max-height: 100%; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+    <div id="home" class="screen active">
+        <h1>TOUCH</h1>
+        <button class="btn btn-accent" onclick="nav('camera')">CAPTURE</button>
+        <button class="btn" onclick="alert('Library function coming soon')">LIBRARY</button>
+    </div>
+
+    <div id="camera" class="screen">
+        <div id="camera-container">
+            <video id="video" autoplay playsinline></video>
+            <div class="guide v-line"></div>
+            <div class="guide h-line"></div>
+        </div>
+        <div class="controls">
+            <div id="counter" style="color:#666; font-size:0.8rem;">0 FRAMES</div>
+            <div id="shutter" onclick="captureFrame()"></div>
+            <div class="nav-row">
+                <button class="btn" onclick="nav('home')">HOME</button>
+                <button class="btn btn-accent" onclick="startViewer()">DONE</button>
+            </div>
+        </div>
+        <canvas id="buffer"></canvas>
+    </div>
+
+    <div id="viewer" class="screen">
+        <div id="viewer-area">
+            <img id="viewer-img">
+        </div>
+        <div style="height:15%; display:flex; align-items:center; width:100%; justify-content:center; padding-bottom:env(safe-area-inset-bottom);">
+            <button class="btn" onclick="nav('home')">BACK</button>
+        </div>
+    </div>
+
+    <script>
+        let capturedImages = [];
+        let isDragging = false;
+        let lastX = 0;
+        let velocity = 0;
+        let currentPos = 0;
+        const friction = 0.96;
+        const sensitivity = 0.05;
+
+        // 画面遷移
+        function nav(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            if(id === 'camera') initCamera(); else stopCamera();
+            if(id === 'home') capturedImages = []; // リセット
+        }
+
+        // カメラ起動
+        async function initCamera() {
+            capturedImages = [];
+            document.getElementById('counter').innerText = "0 FRAMES";
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment', width: 1280, height: 1280 } 
+                });
+                document.getElementById('video').srcObject = stream;
+            } catch (e) {
+                alert("カメラにアクセスできません");
+            }
+        }
+
+        function stopCamera() {
+            const video = document.getElementById('video');
+            if(video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
+        }
+
+        // 撮影処理
+        function captureFrame() {
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('buffer');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0);
+            
+            capturedImages.push(canvas.toDataURL('image/jpeg', 0.7));
+            document.getElementById('counter').innerText = `${capturedImages.length} FRAMES`;
+            
+            // 視覚フィードバック（一瞬白く光る）
+            video.style.opacity = 0.5;
+            setTimeout(() => video.style.opacity = 1, 50);
+        }
+
+        // ビューワー開始
+        function startViewer() {
+            if(capturedImages.length < 2) return alert("2枚以上撮影してください");
+            document.getElementById('viewer-img').src = capturedImages[0];
+            nav('viewer');
+            renderViewer();
+        }
+
+        // ビューワーロジック
+        const vArea = document.getElementById('viewer-area');
+        const vImg = document.getElementById('viewer-img');
+
+        vArea.addEventListener('pointerdown', e => {
+            isDragging = true;
+            lastX = e.clientX;
+            velocity = 0;
+            vArea.setPointerCapture(e.pointerId);
+        });
+
+        vArea.addEventListener('pointermove', e => {
+            if(!isDragging) return;
+            const dx = e.clientX - lastX;
+            velocity += dx * sensitivity;
+            lastX = e.clientX;
+        });
+
+        vArea.addEventListener('pointerup', () => isDragging = false);
+
+        function renderViewer() {
+            if(document.getElementById('viewer').classList.contains('active')) {
+                if(!isDragging) velocity *= friction;
+                if(Math.abs(velocity) < 0.01) velocity = 0;
+                currentPos += velocity;
+                
+                const total = capturedImages.length;
+                const idx = (Math.floor(currentPos) % total + total) % total;
+                vImg.src = capturedImages[idx];
+                
+                requestAnimationFrame(renderViewer);
+            }
+        }
+    </script>
+</body>
+</html>
