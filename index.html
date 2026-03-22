@@ -5,28 +5,48 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>TOUCH</title>
     <style>
-        :root { --bg-color: #000; --text-color: #fff; --accent-color: #ff3b30; }
+        :root { --bg-color: #000; --text-color: #fff; --accent-color: #ff3b30; --card-bg: #1c1c1e; }
         body { margin: 0; padding: 0; background: var(--bg-color); color: var(--text-color); font-family: -apple-system, sans-serif; overflow: hidden; -webkit-user-select: none; user-select: none; }
         .screen { display: none; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; flex-direction: column; align-items: center; justify-content: center; }
         .screen.active { display: flex; }
+        
         h1 { font-size: 4.5rem; font-weight: 900; letter-spacing: 0.2em; margin: 0 0 2rem 0.2em; }
-        .btn { background: #1c1c1e; color: #fff; border: 1px solid #3a3a3c; padding: 20px; font-size: 1.1rem; border-radius: 14px; margin: 10px; cursor: pointer; width: 85%; max-width: 320px; text-align: center; -webkit-tap-highlight-color: transparent; }
+        
+        /* UI Components */
+        .btn { background: #2c2c2e; color: #fff; border: 1px solid #3a3a3c; padding: 18px; font-size: 1rem; border-radius: 14px; margin: 8px; cursor: pointer; width: 85%; max-width: 320px; text-align: center; -webkit-tap-highlight-color: transparent; }
         .btn-accent { background: var(--accent-color); border: none; font-weight: bold; }
-        .btn:active { background: #3a3a3c; transform: scale(0.98); }
-        #camera-container { width: 100%; height: 75%; background: #000; position: relative; }
+        .btn-danger { background: #444; border: none; font-size: 0.8rem; width: auto; padding: 8px 12px; }
+        .btn:active { opacity: 0.7; transform: scale(0.98); }
+
+        /* CAMERA */
+        #camera-container { width: 100%; height: 70%; background: #000; position: relative; }
         video { width: 100%; height: 100%; object-fit: cover; }
         canvas { display: none; }
-        .guide { position: absolute; background: rgba(255,255,255,0.4); pointer-events: none; }
-        .v-line { width: 1px; height: 100%; left: 50%; }
-        .h-line { width: 100%; height: 1px; top: 50%; left: 0; }
-        .controls { width: 100%; height: 25%; display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; background: #000; padding-bottom: env(safe-area-inset-bottom); }
-        #shutter { width: 72px; height: 72px; border-radius: 50%; background: #fff; border: 5px solid #333; }
-        .nav-row { display: flex; width: 90%; justify-content: space-between; }
-        .nav-row .btn { width: 46%; margin: 0; padding: 12px; font-size: 0.9rem; }
-        #viewer-area { width: 100%; height: 75%; position: relative; background: #000; display: flex; align-items: center; justify-content: center; touch-action: none; overflow: hidden; }
+        
+        /* 3x3 Grid Guidelines */
+        .guide { position: absolute; background: rgba(255,255,255,0.3); pointer-events: none; }
+        .v-line-1 { width: 1px; height: 100%; left: 33.3%; }
+        .v-line-2 { width: 1px; height: 100%; left: 66.6%; }
+        .h-line-1 { width: 100%; height: 1px; top: 33.3%; left: 0; }
+        .h-line-2 { width: 100%; height: 1px; top: 66.6%; left: 0; }
+        
+        /* Bottom Controls for Modern OS */
+        .controls { width: 100%; height: 30%; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; background: #000; padding-top: 20px; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+        #shutter { width: 75px; height: 75px; border-radius: 50%; background: #fff; border: 5px solid #333; margin-bottom: 20px; }
+        .nav-row { display: flex; width: 90%; justify-content: space-around; margin-top: auto; }
+        .nav-row .btn { width: 44%; margin: 0; padding: 14px; font-size: 0.9rem; }
+
+        /* VIEWER */
+        #viewer-area { width: 100%; height: 70%; position: relative; background: #000; display: flex; align-items: center; justify-content: center; touch-action: none; overflow: hidden; }
         #viewer-img { max-width: 100%; max-height: 100%; pointer-events: none; }
-        #lib-list { width: 90%; height: 70%; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-        .lib-item { background: #1c1c1e; padding: 15px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #333; }
+        
+        /* LIBRARY LIST */
+        #library h2 { margin-top: 60px; letter-spacing: 0.1em; }
+        #lib-list { width: 92%; height: 65%; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 10px 0; }
+        .lib-item { background: var(--card-bg); padding: 12px; border-radius: 16px; display: flex; align-items: center; border: 1px solid #333; }
+        .thumb { width: 60px; height: 60px; border-radius: 8px; object-fit: cover; margin-right: 15px; background: #333; }
+        .item-info { flex-grow: 1; overflow: hidden; }
+        .item-title { display: block; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
     </style>
 </head>
 <body>
@@ -40,11 +60,11 @@
     <div id="camera" class="screen">
         <div id="camera-container">
             <video id="video" autoplay playsinline></video>
-            <div class="guide v-line"></div>
-            <div class="guide h-line"></div>
+            <div class="guide v-line-1"></div><div class="guide v-line-2"></div>
+            <div class="guide h-line-1"></div><div class="guide h-line-2"></div>
         </div>
         <div class="controls">
-            <div id="counter" style="color:#666; font-size:0.8rem;">0 FRAMES</div>
+            <div id="counter" style="color:#666; font-size:0.8rem; margin-bottom: 10px;">0 FRAMES</div>
             <div id="shutter" onclick="captureFrame()"></div>
             <div class="nav-row">
                 <button class="btn" onclick="nav('home')">CANCEL</button>
@@ -57,7 +77,8 @@
     <div id="viewer" class="screen">
         <div id="viewer-area"><img id="viewer-img"></div>
         <div class="controls">
-            <div id="viewer-msg" style="color:#888; font-size:0.8rem;">PREVIEWING...</div>
+            <div id="viewer-msg" style="color:#888; font-size:0.8rem; margin-bottom: 5px;">SWIPE TO ROTATE</div>
+            <button class="btn" id="autoplay-btn" onclick="runAutoSpin()" style="width:100px; padding:8px; font-size:0.8rem; margin-bottom:15px;">▶ AUTO PLAY</button>
             <div class="nav-row" id="preview-controls">
                 <button class="btn" onclick="nav('camera')">RETAKE</button>
                 <button class="btn btn-accent" onclick="saveToLibrary()">SAVE</button>
@@ -70,15 +91,14 @@
     </div>
 
     <div id="library" class="screen">
-        <h2 style="margin-top: 40px;">LIBRARY</h2>
+        <h2>LIBRARY</h2>
         <div id="lib-list"></div>
-        <button class="btn" onclick="nav('home')" style="margin-bottom: 40px;">HOME</button>
+        <button class="btn" onclick="nav('home')" style="margin: 20px 0 40px 0;">HOME</button>
     </div>
 
     <script>
         let capturedImages = [];
-        let isDragging = false, lastX = 0, velocity = 0, currentPos = 0;
-        let isAutoSpinning = false; // 自動再生中フラグ
+        let isDragging = false, lastX = 0, velocity = 0, currentPos = 0, isAutoSpinning = false;
         const friction = 0.92, dragDamping = 0.4;
 
         let db;
@@ -100,7 +120,7 @@
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 1280, height: 1280 } });
                 document.getElementById('video').srcObject = stream;
-            } catch (e) { alert("カメラにアクセスできません"); }
+            } catch (e) { alert("カメラ起動エラー"); }
         }
 
         function stopCamera() {
@@ -113,47 +133,31 @@
             const canvas = document.getElementById('buffer');
             canvas.width = video.videoWidth; canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0);
-            capturedImages.push(canvas.toDataURL('image/jpeg', 0.6));
+            capturedImages.push(canvas.toDataURL('image/jpeg', 0.5));
             document.getElementById('counter').innerText = `${capturedImages.length} FRAMES`;
         }
 
         function startViewer(isPreview) {
-            if(capturedImages.length < 2) return alert("2枚以上撮影してください");
+            if(capturedImages.length < 2) return alert("撮影してください");
             document.getElementById('viewer-img').src = capturedImages[0];
             document.getElementById('preview-controls').style.display = isPreview ? 'flex' : 'none';
             document.getElementById('library-controls').style.display = isPreview ? 'none' : 'flex';
             nav('viewer');
-            
-            if(isPreview) {
-                runAutoSpin(); // プレビュー時のみ自動再生
-            } else {
-                document.getElementById('viewer-msg').innerText = "SWIPE TO ROTATE";
-                renderViewer();
-            }
+            if(isPreview) runAutoSpin(); else renderViewer();
         }
 
         function runAutoSpin() {
+            if(isAutoSpinning) return;
             isAutoSpinning = true;
-            document.getElementById('viewer-msg').innerText = "CHECKING...";
-            currentPos = 0;
-            velocity = 0;
-            
-            let startTime = null;
-            const duration = 2000; // 2秒間で回す
-            const spins = 2; // 2回転させる
-
-            function animate(timestamp) {
-                if(!startTime) startTime = timestamp;
-                let progress = (timestamp - startTime) / duration;
-
+            let start = null, duration = 2000, spins = 2;
+            function animate(time) {
+                if(!start) start = time;
+                let progress = (time - start) / duration;
                 if (progress < 1 && isAutoSpinning) {
                     currentPos = progress * (capturedImages.length * spins);
-                    updateImage();
-                    requestAnimationFrame(animate);
+                    updateImage(); requestAnimationFrame(animate);
                 } else {
-                    isAutoSpinning = false;
-                    document.getElementById('viewer-msg').innerText = "SWIPE TO ROTATE";
-                    renderViewer(); // 通常のレンダリング（操作可能）に移行
+                    isAutoSpinning = false; renderViewer();
                 }
             }
             requestAnimationFrame(animate);
@@ -171,8 +175,16 @@
             const title = prompt("名前をつけて保存", new Date().toLocaleString());
             if(!title) return;
             const transaction = db.transaction(["photos"], "readwrite");
-            transaction.objectStore("photos").add({ title: title, data: capturedImages });
-            transaction.oncomplete = () => { alert("保存しました"); nav('home'); };
+            transaction.objectStore("photos").add({ title: title, data: capturedImages, thumb: capturedImages[0] });
+            transaction.oncomplete = () => { alert("保存成功"); nav('home'); };
+        }
+
+        function deleteItem(id, e) {
+            e.stopPropagation();
+            if(!confirm("削除しますか？")) return;
+            const transaction = db.transaction(["photos"], "readwrite");
+            transaction.objectStore("photos").delete(id);
+            transaction.oncomplete = () => openLibrary();
         }
 
         async function openLibrary() {
@@ -181,28 +193,31 @@
             transaction.objectStore("photos").openCursor().onsuccess = e => {
                 const cursor = e.target.result;
                 if(cursor) {
+                    const item = cursor.value;
                     const div = document.createElement('div'); div.className = 'lib-item';
-                    div.innerHTML = `<span>${cursor.value.title}</span>`;
-                    const btn = document.createElement('button'); btn.innerText = "VIEW"; btn.className = "btn";
-                    btn.style.width = "80px"; btn.style.padding = "10px"; btn.style.margin = "0";
-                    btn.onclick = (val => () => { capturedImages = val; startViewer(false); })(cursor.value.data);
-                    div.appendChild(btn);
-                    list.appendChild(div);
-                    cursor.continue();
+                    div.innerHTML = `<img src="${item.thumb}" class="thumb">
+                                     <div class="item-info"><span class="item-title">${item.title}</span></div>`;
+                    
+                    const vBtn = document.createElement('button'); vBtn.innerText = "VIEW"; vBtn.className = "btn";
+                    vBtn.style.width = "70px"; vBtn.style.padding = "8px"; vBtn.style.margin = "0 8px 0 0";
+                    vBtn.onclick = () => { capturedImages = item.data; startViewer(false); };
+                    
+                    const dBtn = document.createElement('button'); dBtn.innerText = "×"; dBtn.className = "btn-danger";
+                    dBtn.onclick = (e) => deleteItem(item.id, e);
+                    
+                    div.appendChild(vBtn); div.appendChild(dBtn);
+                    list.appendChild(div); cursor.continue();
                 }
             };
             nav('library');
         }
 
         const vArea = document.getElementById('viewer-area');
-        vArea.addEventListener('pointerdown', e => { 
-            if(isAutoSpinning) return; // 再生中は操作不可
-            isDragging = true; lastX = e.clientX; velocity = 0; vArea.setPointerCapture(e.pointerId); 
-        });
+        vArea.addEventListener('pointerdown', e => { if(isAutoSpinning) return; isDragging = true; lastX = e.clientX; velocity = 0; vArea.setPointerCapture(e.pointerId); });
         vArea.addEventListener('pointermove', e => {
             if(!isDragging || isAutoSpinning) return;
             const dx = e.clientX - lastX;
-            velocity += (dx / window.innerWidth) * (capturedImages.length * 2.0); // 係数 2.0
+            velocity += (dx / window.innerWidth) * (capturedImages.length * 2.0); // 係数2.0
             lastX = e.clientX;
         });
         vArea.addEventListener('pointerup', () => isDragging = false);
@@ -211,8 +226,7 @@
             if(document.getElementById('viewer').classList.contains('active') && !isAutoSpinning) {
                 velocity *= (isDragging ? dragDamping : friction);
                 if(Math.abs(velocity) < 0.01) velocity = 0;
-                currentPos += velocity;
-                updateImage();
+                currentPos += velocity; updateImage();
                 requestAnimationFrame(renderViewer);
             }
         }
