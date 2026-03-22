@@ -11,8 +11,8 @@
         .screen.active { display: flex; }
         h1 { font-size: 4.5rem; font-weight: 900; letter-spacing: 0.2em; margin: 0 0 2rem 0.2em; }
         
-        .btn { background: #2c2c2e; color: #fff; border: 1px solid #3a3a3c; padding: 18px; font-size: 1rem; border-radius: 14px; margin: 8px; cursor: pointer; width: 85%; max-width: 320px; text-align: center; }
-        .btn-accent { background: var(--accent-color); border: none; font-weight: bold; }
+        .btn { background: #2c2c2e; color: #fff; border: 1px solid #3a3a3c; padding: 18px; font-size: 1rem; border-radius: 14px; margin: 8px; cursor: pointer; width: 85%; max-width: 320px; text-align: center; border: none; }
+        .btn-accent { background: var(--accent-color); font-weight: bold; }
         
         #camera-container { width: 100%; height: 65%; background: #000; position: relative; overflow: hidden; }
         video { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 1; }
@@ -26,7 +26,7 @@
         .nav-row .btn { width: 45%; margin: 0; padding: 14px; font-size: 0.9rem; }
 
         #viewer-area { width: 100%; height: 65%; position: relative; background: #000; display: flex; align-items: center; justify-content: center; touch-action: none; overflow: hidden; }
-        #viewer-img { max-width: 100%; max-height: 100%; pointer-events: none; transition: transform 0.05s linear; }
+        #viewer-img { max-width: 100%; max-height: 100%; pointer-events: none; }
         
         #mode-toggle { background: #222; padding: 8px 15px; border-radius: 20px; font-size: 0.75rem; margin-bottom: 12px; cursor: pointer; border: 1px solid #444; color: #aaa; }
 
@@ -55,7 +55,7 @@
 
     <div id="camera" class="screen">
         <div id="camera-container">
-            <video id="video" autoplay playsinline></video>
+            <video id="video" autoplay playsinline muted></video>
             <div class="guide v-line-1"></div><div class="guide v-line-2"></div>
             <div class="guide h-line-1"></div><div class="guide h-line-2"></div>
         </div>
@@ -105,19 +105,24 @@
         const friction = 0.92, dragDamping = 0.4;
         let db;
 
+        // IndexedDB初期化
         const request = indexedDB.open("TouchAppDB", 1);
         request.onupgradeneeded = e => { e.target.result.createObjectStore("photos", { keyPath: "id", autoIncrement: true }); };
         request.onsuccess = e => { db = e.target.result; };
 
+        // センサー許可と画面遷移
         async function requestSensorAndNav() {
             if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                 try {
                     const permission = await DeviceOrientationEvent.requestPermission();
-                    if (permission === 'granted') window.addEventListener('deviceorientation', handleOrientation);
-                } catch (e) { console.error(e); }
+                    if (permission === 'granted') {
+                        window.addEventListener('deviceorientation', handleOrientation);
+                    }
+                } catch (e) { console.error("Sensor permission failed:", e); }
             } else {
                 window.addEventListener('deviceorientation', handleOrientation);
             }
+            // 許可の状態に関わらず、カメラ画面へは遷移させる
             nav('camera');
         }
 
@@ -134,29 +139,237 @@
         }
 
         function nav(id) {
+            // 全画面を非表示にしてから対象を表示
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
-            if(id === 'camera') initCamera(); else stopCamera();
+            const target = document.getElementById(id);
+            if(target) target.classList.add('active');
+
+            if(id === 'camera') {
+                initCamera();
+            } else {
+                stopCamera();
+            }
+            
+            // 状態リセット
             isAutoSpinning = false;
-            startAngle = null; maxDiffAngle = 0;
+            startAngle = null; 
+            maxDiffAngle = 0;
         }
 
         async function initCamera() {
             capturedImages = [];
             offsets = [];
             document.getElementById('counter').innerText = "0 FRAMES";
+            const video = document.getElementById('video');
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 1280, height: 1280 } });
-                document.getElementById('video').srcObject = stream;
-            } catch (e) { alert("Camera Error"); }
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 1280 } } 
+                });
+                video.srcObject = stream;
+                video.onloadedmetadata = () => video.play();
+            } catch (e) { 
+                console.error("Camera access failed:", e);
+                alert("カメラにアクセスできません。設定を確認してください。"); 
+            }
         }
 
         function stopCamera() {
             const video = document.getElementById('video');
-            if(video.srcObject) { video.srcObject.getTracks().forEach(t => t.stop()); video.srcObject = null; }
+            if(video && video.srcObject) { 
+                video.srcObject.getTracks().forEach(t => t.stop()); 
+                video.srcObject = null; 
+            }
         }
 
         function captureFrame() {
             const video = document.getElementById('video');
             const canvas = document.getElementById('buffer');
-            canvas
+            if(!video.srcObject) return;
+
+            canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            capturedImages.push(canvas.toDataURL('image/jpeg', 0.5));
+            offsets.push({x: 0, y: 0});
+            document.getElementById('counter').innerText = `${capturedImages.length} FRAMES`;
+        }
+
+        function startViewer(isPreview) {
+            if(capturedImages.length < 2) return alert("2枚以上撮影してください");
+            if(offsets.length === 0) offsets = capturedImages.map(() => ({x:0, y:0}));
+            
+            currentMode = maxDiffAngle > 100 ? '360' : 'obj';
+            updateModeUI();
+            updateImage();
+
+            document.getElementById('preview-controls').style.display = isPreview ? 'flex' : 'none';
+            document.getElementById('library-controls').style.display = isPreview ? 'none' : 'flex';
+            document.getElementById('align-btn').style.display = isPreview ? 'block' : 'none';
+            document.getElementById('undo-btn').style.display = 'none';
+            document.getElementById('mode-toggle').style.display = isPreview ? 'block' : 'none';
+            nav('viewer');
+            if(isPreview) runAutoSpin(); else renderViewer();
+        }
+
+        function toggleModeManually() {
+            currentMode = (currentMode === 'obj') ? '360' : 'obj';
+            updateModeUI();
+        }
+
+        function updateModeUI() {
+            const btn = document.getElementById('mode-toggle');
+            if(btn) btn.innerText = currentMode === 'obj' ? "MODE: 📦 OBJECT" : "MODE: 🌐 360° VIEW";
+        }
+
+        async function alignBackground() {
+            const loading = document.getElementById('loading');
+            loading.style.display = 'flex';
+            const canvas = document.getElementById('buffer');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            const bgAnchors = [];
+            const size = 160;
+
+            for (let i = 0; i < capturedImages.length; i++) {
+                document.getElementById('load-progress').innerText = `${Math.round((i/capturedImages.length)*100)}%`;
+                const img = await loadImage(capturedImages[i]);
+                canvas.width = size; canvas.height = size; 
+                ctx.drawImage(img, 0, 0, size, size);
+                const data = ctx.getImageData(0, 0, size, size).data;
+                
+                let sumX = 0, sumY = 0, count = 0;
+                for (let y = 0; y < size; y += 4) {
+                    for (let x = 0; x < size; x += 4) {
+                        const distFromCenter = Math.sqrt((x - size/2)**2 + (y - size/2)**2);
+                        if (distFromCenter > (size/2) * 0.65) { 
+                            const idx = (y * size + x) * 4;
+                            const brightness = (data[idx] + data[idx+1] + data[idx+2])/3;
+                            if (brightness > 50 && brightness < 200) {
+                                sumX += x * brightness; sumY += y * brightness; count += brightness;
+                            }
+                        }
+                    }
+                }
+                bgAnchors.push(count > 0 ? {x: sumX/count, y: sumY/count} : {x: size/2, y: size/2});
+                if(i % 5 === 0) await new Promise(r => setTimeout(r, 1));
+            }
+
+            const base = bgAnchors[0];
+            const scale = 1280 / size;
+            offsets = bgAnchors.map((anchor, i) => {
+                let offX = (base.x - anchor.x) * scale;
+                let offY = (base.y - anchor.y) * scale;
+                offX = Math.max(-100, Math.min(100, offX));
+                offY = Math.max(-100, Math.min(100, offY));
+                if (i > capturedImages.length * 0.85) {
+                    const ratio = (i - capturedImages.length * 0.85) / (capturedImages.length * 0.15);
+                    offX *= (1 - ratio); offY *= (1 - ratio);
+                }
+                return {x: offX, y: offY};
+            });
+
+            loading.style.display = 'none';
+            document.getElementById('undo-btn').style.display = 'block';
+            updateImage();
+        }
+
+        function resetAlign() {
+            offsets = capturedImages.map(() => ({x: 0, y: 0}));
+            document.getElementById('undo-btn').style.display = 'none';
+            updateImage();
+        }
+
+        function loadImage(src) { return new Promise(resolve => { const img = new Image(); img.onload = () => resolve(img); img.src = src; }); }
+
+        function updateImage() {
+            const total = capturedImages.length;
+            if(total > 0) {
+                const idx = (Math.floor(currentPos) % total + total) % total;
+                const imgEl = document.getElementById('viewer-img');
+                imgEl.src = capturedImages[idx];
+                const off = offsets[idx] || {x:0, y:0};
+                imgEl.style.transform = `translate(${off.x}px, ${off.y}px)`;
+            }
+        }
+
+        function runAutoSpin() {
+            if(isAutoSpinning) return;
+            isAutoSpinning = true;
+            let start = null, duration = 2000;
+            function animate(time) {
+                if(!start) start = time;
+                let progress = (time - start) / duration;
+                if (progress < 1 && isAutoSpinning) {
+                    currentPos = progress * (capturedImages.length * 2);
+                    updateImage(); requestAnimationFrame(animate);
+                } else { isAutoSpinning = false; renderViewer(); }
+            }
+            requestAnimationFrame(animate);
+        }
+
+        function saveToLibrary() {
+            const now = new Date();
+            const title = prompt("保存名を入力してください", now.toLocaleString());
+            if(!title) return;
+            const transaction = db.transaction(["photos"], "readwrite");
+            transaction.objectStore("photos").add({ 
+                title, data: capturedImages, offsets: offsets, thumb: capturedImages[0], 
+                timestamp: now.getTime(), dateLabel: now.toLocaleString(), mode: currentMode, count: capturedImages.length
+            });
+            transaction.oncomplete = () => { alert("保存しました"); nav('home'); };
+        }
+
+        function openLibrary() {
+            const list = document.getElementById('lib-list'); 
+            if(!list) return;
+            list.innerHTML = "";
+            const transaction = db.transaction(["photos"], "readonly");
+            let items = [];
+            transaction.objectStore("photos").openCursor().onsuccess = e => {
+                const cursor = e.target.result;
+                if(cursor) { items.push(cursor.value); cursor.continue(); }
+                else {
+                    items.sort((a,b) => b.timestamp - a.timestamp);
+                    items.forEach(item => {
+                        const div = document.createElement('div'); div.className = 'lib-item';
+                        div.innerHTML = `<div class="thumb-container"><img src="${item.thumb}" class="thumb"><div class="count-badge">${item.count}</div></div><div class="item-info"><div class="title-row"><span class="item-title">${item.title}</span><span>${item.mode==='360'?'🌐':'📦'}</span></div><span class="item-date">${item.dateLabel}</span></div><div class="icon-btn" onclick="viewItem(${item.id})">▶</div><div class="icon-btn" onclick="deleteItem(${item.id})">🗑</div>`;
+                        list.appendChild(div);
+                    });
+                }
+            };
+            nav('library');
+        }
+
+        window.viewItem = (id) => {
+            const transaction = db.transaction(["photos"], "readonly");
+            transaction.objectStore("photos").get(id).onsuccess = e => {
+                capturedImages = e.target.result.data;
+                offsets = e.target.result.offsets || capturedImages.map(() => ({x:0, y:0}));
+                currentMode = e.target.result.mode || 'obj';
+                startViewer(false);
+            };
+        };
+
+        window.deleteItem = (id) => {
+            if(!confirm("削除しますか？")) return;
+            const transaction = db.transaction(["photos"], "readwrite");
+            transaction.objectStore("photos").delete(id).onsuccess = () => openLibrary();
+        };
+
+        const vArea = document.getElementById('viewer-area');
+        vArea.addEventListener('pointerdown', e => { if(isAutoSpinning) return; isDragging = true; lastX = e.clientX; velocity = 0; vArea.setPointerCapture(e.pointerId); });
+        vArea.addEventListener('pointermove', e => {
+            if(!isDragging || isAutoSpinning) return;
+            velocity += ((e.clientX - lastX) / window.innerWidth) * (capturedImages.length * 1.5);
+            lastX = e.clientX;
+        });
+        vArea.addEventListener('pointerup', () => isDragging = false);
+
+        function renderViewer() {
+            if(!document.getElementById('viewer').classList.contains('active') || isAutoSpinning) return;
+            velocity *= (isDragging ? dragDamping : friction);
+            if(Math.abs(velocity) < 0.01) velocity = 0;
+            currentPos += velocity; updateImage();
+            requestAnimationFrame(renderViewer);
+        }
+    </script>
+</body>
+</html>
