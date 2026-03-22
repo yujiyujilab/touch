@@ -162,7 +162,7 @@
             const dx = e.clientX - lastX;
             
             // 画面幅分なぞった時に、全枚数の半分(180度)進む計算
-            velocity += (dx / window.innerWidth) * (capturedImages.length * 1);
+            velocity += (dx / window.innerWidth) * (capturedImages.length * 2);
             
             lastX = e.clientX;
         });
