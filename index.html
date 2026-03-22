@@ -11,26 +11,22 @@
         .screen.active { display: flex; }
         h1 { font-size: 4.5rem; font-weight: 900; letter-spacing: 0.2em; margin: 0 0 2rem 0.2em; }
         
-        .btn { background: #2c2c2e; color: #fff; border: 1px solid #3a3a3c; padding: 18px; font-size: 1rem; border-radius: 14px; margin: 8px; cursor: pointer; width: 85%; max-width: 320px; text-align: center; -webkit-tap-highlight-color: transparent; }
+        .btn { background: #2c2c2e; color: #fff; border: 1px solid #3a3a3c; padding: 18px; font-size: 1rem; border-radius: 14px; margin: 8px; cursor: pointer; width: 85%; max-width: 320px; text-align: center; }
         .btn-accent { background: var(--accent-color); border: none; font-weight: bold; }
         
-        /* CAMERA & GUIDES - 縦線を絶対に出す設定 */
         #camera-container { width: 100%; height: 65%; background: #000; position: relative; overflow: hidden; }
         video { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 1; }
-        
         .guide { position: absolute; background: rgba(255,255,255,0.4); pointer-events: none; z-index: 100; }
-        .v-line-1 { width: 1.5px; height: 100%; left: 33.33%; top: 0; } 
-        .v-line-2 { width: 1.5px; height: 100%; left: 66.66%; top: 0; }
-        .h-line-1 { width: 100%; height: 1.5px; top: 33.33%; left: 0; } 
-        .h-line-2 { width: 100%; height: 1.5px; top: 66.66%; left: 0; }
+        .v-line-1 { width: 1.5px; height: 100%; left: 33.3%; } .v-line-2 { width: 1.5px; height: 100%; left: 66.6%; }
+        .h-line-1 { width: 100%; height: 1.5px; top: 33.3%; left: 0; } .h-line-2 { width: 100%; height: 1.5px; top: 66.6%; left: 0; }
         
-        .controls { width: 100%; height: 35%; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; background: #000; padding-top: 25px; padding-bottom: calc(30px + env(safe-area-inset-bottom)); z-index: 10; }
-        #shutter { width: 80px; height: 80px; border-radius: 50%; background: #fff; border: 6px solid #333; margin-bottom: 25px; }
+        .controls { width: 100%; height: 35%; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; background: #000; padding-top: 20px; padding-bottom: calc(30px + env(safe-area-inset-bottom)); z-index: 10; }
+        #shutter { width: 75px; height: 75px; border-radius: 50%; background: #fff; border: 6px solid #333; margin-bottom: 20px; }
         .nav-row { display: flex; width: 92%; justify-content: space-around; margin-top: auto; }
-        .nav-row .btn { width: 45%; margin: 0; padding: 15px; font-size: 0.9rem; }
+        .nav-row .btn { width: 45%; margin: 0; padding: 14px; font-size: 0.9rem; }
 
-        #viewer-area { width: 100%; height: 65%; position: relative; background: #000; display: flex; align-items: center; justify-content: center; touch-action: none; }
-        #viewer-img { max-width: 100%; max-height: 100%; pointer-events: none; }
+        #viewer-area { width: 100%; height: 65%; position: relative; background: #000; display: flex; align-items: center; justify-content: center; touch-action: none; overflow: hidden; }
+        #viewer-img { max-width: 110%; max-height: 110%; pointer-events: none; transition: transform 0.1s; }
         
         #lib-list { width: 92%; height: 50%; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
         .lib-item { background: var(--card-bg); padding: 10px; border-radius: 16px; display: flex; align-items: center; border: 1px solid #333; }
@@ -38,14 +34,18 @@
         .thumb { width: 60px; height: 60px; border-radius: 10px; object-fit: cover; background: #333; }
         .count-badge { position: absolute; bottom: -4px; right: -4px; background: var(--accent-color); color: white; font-size: 0.6rem; padding: 2px 5px; border-radius: 8px; font-weight: bold; border: 2px solid var(--card-bg); }
         .item-info { flex-grow: 1; min-width: 0; }
-        .title-row { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
+        .title-row { display: flex; align-items: center; gap: 6px; }
         .item-title { font-size: 0.95rem; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .mode-icon { font-size: 0.8rem; }
         .item-date { display: block; font-size: 0.7rem; color: #555; }
         .icon-btn { width: 44px; height: 44px; border-radius: 12px; border: 1px solid #3a3a3c; display: flex; align-items: center; justify-content: center; margin-left: 8px; font-size: 1.1rem; cursor: pointer; background: #2c2c2e; color: #fff; }
+        
+        /* Loading Overlay */
+        #loading { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; color: white; flex-direction: column; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
+
+    <div id="loading"><div style="margin-bottom:15px;">Adjusting...</div><div id="load-progress">0%</div></div>
 
     <div id="home" class="screen active">
         <h1>TOUCH</h1>
@@ -73,7 +73,10 @@
     <div id="viewer" class="screen">
         <div id="viewer-area"><img id="viewer-img"></div>
         <div class="controls">
-            <button class="btn" onclick="runAutoSpin()" style="width:130px; padding:12px; font-size:0.85rem; margin-bottom:20px; background:#222;">▶ AUTO PLAY</button>
+            <div style="display:flex; gap:10px; margin-bottom:15px;">
+                <button class="btn" onclick="runAutoSpin()" style="width:110px; padding:10px; font-size:0.8rem; background:#222;">▶ PLAY</button>
+                <button id="align-btn" class="btn" onclick="autoAlignImages()" style="width:110px; padding:10px; font-size:0.8rem; background:#2c2c2e; border-color:#555;">🪄 AUTO ALIGN</button>
+            </div>
             <div class="nav-row" id="preview-controls">
                 <button class="btn" onclick="nav('camera')">RETAKE</button>
                 <button class="btn btn-accent" onclick="saveToLibrary()">SAVE</button>
@@ -87,16 +90,13 @@
 
     <div id="library" class="screen">
         <h2 style="margin-top:60px;">LIBRARY</h2>
-        <div style="display:flex; gap:10px; margin-bottom:15px;">
-            <button class="btn" style="width:80px; padding:8px; font-size:0.7rem;" onclick="openLibrary('date')">DATE</button>
-            <button class="btn" style="width:80px; padding:8px; font-size:0.7rem;" onclick="openLibrary('name')">NAME</button>
-        </div>
         <div id="lib-list"></div>
         <button class="btn" onclick="nav('home')" style="margin-top:25px;">HOME</button>
     </div>
 
     <script>
         let capturedImages = [];
+        let offsets = []; // {x, y} 補正データ
         let isDragging = false, lastX = 0, velocity = 0, currentPos = 0, isAutoSpinning = false;
         let startAngle = null, currentAngle = 0, maxDiffAngle = 0;
         const friction = 0.92, dragDamping = 0.4;
@@ -110,13 +110,9 @@
             if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                 try {
                     const permission = await DeviceOrientationEvent.requestPermission();
-                    if (permission === 'granted') {
-                        window.removeEventListener('deviceorientation', handleOrientation);
-                        window.addEventListener('deviceorientation', handleOrientation);
-                    }
+                    if (permission === 'granted') window.addEventListener('deviceorientation', handleOrientation);
                 } catch (e) { console.error(e); }
             } else {
-                window.removeEventListener('deviceorientation', handleOrientation);
                 window.addEventListener('deviceorientation', handleOrientation);
             }
             nav('camera');
@@ -137,33 +133,24 @@
         function nav(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
-            if(id === 'camera') {
-                initCamera();
-            } else {
-                stopCamera();
-            }
-            // リセット処理の徹底
+            if(id === 'camera') initCamera(); else stopCamera();
             isAutoSpinning = false;
-            startAngle = null; 
-            maxDiffAngle = 0;
+            startAngle = null; maxDiffAngle = 0;
         }
 
         async function initCamera() {
             capturedImages = [];
+            offsets = [];
             document.getElementById('counter').innerText = "0 FRAMES";
-            const video = document.getElementById('video');
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 1280, height: 1280 } });
-                video.srcObject = stream;
-            } catch (e) { alert("カメラ起動に失敗しました。設定を確認してください。"); }
+                document.getElementById('video').srcObject = stream;
+            } catch (e) { alert("Camera Error"); }
         }
 
         function stopCamera() {
             const video = document.getElementById('video');
-            if(video.srcObject) {
-                video.srcObject.getTracks().forEach(t => t.stop());
-                video.srcObject = null;
-            }
+            if(video.srcObject) { video.srcObject.getTracks().forEach(t => t.stop()); video.srcObject = null; }
         }
 
         function captureFrame() {
@@ -172,16 +159,81 @@
             canvas.width = video.videoWidth; canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0);
             capturedImages.push(canvas.toDataURL('image/jpeg', 0.5));
+            offsets.push({x: 0, y: 0});
             document.getElementById('counter').innerText = `${capturedImages.length} FRAMES`;
         }
 
         function startViewer(isPreview) {
-            if(capturedImages.length < 2) return alert("撮影枚数が足りません");
-            document.getElementById('viewer-img').src = capturedImages[0];
+            if(capturedImages.length < 2) return alert("撮影してください");
+            if(offsets.length === 0) offsets = capturedImages.map(() => ({x:0, y:0}));
+            updateImage();
             document.getElementById('preview-controls').style.display = isPreview ? 'flex' : 'none';
             document.getElementById('library-controls').style.display = isPreview ? 'none' : 'flex';
+            document.getElementById('align-btn').style.display = isPreview ? 'block' : 'none';
             nav('viewer');
             if(isPreview) runAutoSpin(); else renderViewer();
+        }
+
+        // --- 自動手ぶれ補正エンジン ---
+        async function autoAlignImages() {
+            const loading = document.getElementById('loading');
+            loading.style.display = 'flex';
+            
+            const canvas = document.getElementById('buffer');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            const centers = [];
+
+            for (let i = 0; i < capturedImages.length; i++) {
+                document.getElementById('load-progress').innerText = `${Math.round((i/capturedImages.length)*100)}%`;
+                const img = await loadImage(capturedImages[i]);
+                canvas.width = img.width / 4; canvas.height = img.height / 4; // 高速化のため縮小解析
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+                
+                let sumX = 0, sumY = 0, count = 0;
+                for (let y = 0; y < canvas.height; y += 4) {
+                    for (let x = 0; x < canvas.width; x += 4) {
+                        const idx = (y * canvas.width + x) * 4;
+                        const brightness = (data[idx] + data[idx+1] + data[idx+2]) / 3;
+                        if (brightness < 120) { // 暗い部分（被写体）を検出
+                            sumX += x; sumY += y; count++;
+                        }
+                    }
+                }
+                centers.push(count > 0 ? {x: sumX/count, y: sumY/count} : {x: canvas.width/2, y: canvas.height/2});
+                await new Promise(r => setTimeout(r, 10)); // UIフリーズ防止
+            }
+
+            const base = centers[0];
+            offsets = centers.map((c, i) => {
+                let offX = (base.x - c.x) * 4;
+                let offY = (base.y - c.y) * 4;
+                // ループ補正: 最後の数枚を1枚目に寄せる
+                if (i > capturedImages.length * 0.8) {
+                    const ratio = (i - capturedImages.length * 0.8) / (capturedImages.length * 0.2);
+                    offX *= (1 - ratio); offY *= (1 - ratio);
+                }
+                return {x: offX, y: offY};
+            });
+
+            loading.style.display = 'none';
+            alert("補正が完了しました");
+            updateImage();
+        }
+
+        function loadImage(src) {
+            return new Promise(resolve => { const img = new Image(); img.onload = () => resolve(img); img.src = src; });
+        }
+
+        function updateImage() {
+            const total = capturedImages.length;
+            if(total > 0) {
+                const idx = (Math.floor(currentPos) % total + total) % total;
+                const imgEl = document.getElementById('viewer-img');
+                imgEl.src = capturedImages[idx];
+                const off = offsets[idx] || {x:0, y:0};
+                imgEl.style.transform = `translate(${off.x}px, ${off.y}px)`;
+            }
         }
 
         function runAutoSpin() {
@@ -199,28 +251,17 @@
             requestAnimationFrame(animate);
         }
 
-        function updateImage() {
-            const total = capturedImages.length;
-            if(total > 0) {
-                const idx = (Math.floor(currentPos) % total + total) % total;
-                document.getElementById('viewer-img').src = capturedImages[idx];
-            }
-        }
-
         function saveToLibrary() {
             const now = new Date();
-            const dateStr = now.toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
-            const title = prompt("保存名を入力", dateStr);
+            const title = prompt("保存名", now.toLocaleString());
             if(!title) return;
-            
             const mode = maxDiffAngle > 60 ? '360' : 'obj';
             const transaction = db.transaction(["photos"], "readwrite");
             transaction.objectStore("photos").add({ 
-                title, data: capturedImages, thumb: capturedImages[0], 
-                timestamp: now.getTime(), dateLabel: now.toLocaleString(),
-                mode: mode, count: capturedImages.length
+                title, data: capturedImages, offsets: offsets, thumb: capturedImages[0], 
+                timestamp: now.getTime(), dateLabel: now.toLocaleString(), mode: mode, count: capturedImages.length
             });
-            transaction.oncomplete = () => { alert("保存完了"); nav('home'); };
+            transaction.oncomplete = () => { alert("保存しました"); nav('home'); };
         }
 
         function openLibrary(sortType = 'date') {
@@ -231,23 +272,10 @@
                 const cursor = e.target.result;
                 if(cursor) { items.push(cursor.value); cursor.continue(); }
                 else {
-                    if(sortType === 'date') items.sort((a,b) => b.timestamp - a.timestamp);
-                    else items.sort((a,b) => a.title.localeCompare(b.title));
+                    items.sort((a,b) => b.timestamp - a.timestamp);
                     items.forEach(item => {
-                        const modeIcon = item.mode === '360' ? '🌐' : '📦';
                         const div = document.createElement('div'); div.className = 'lib-item';
-                        div.innerHTML = `
-                            <div class="thumb-container">
-                                <img src="${item.thumb || item.data[0]}" class="thumb">
-                                <div class="count-badge">${item.count || '?'}</div>
-                            </div>
-                            <div class="item-info">
-                                <div class="title-row"><span class="item-title">${item.title}</span><span class="mode-icon">${modeIcon}</span></div>
-                                <span class="item-date">${item.dateLabel || ""}</span>
-                            </div>
-                            <div class="icon-btn" onclick="viewItem(${item.id})">▶</div>
-                            <div class="icon-btn" onclick="deleteItem(${item.id})">🗑</div>
-                        `;
+                        div.innerHTML = `<div class="thumb-container"><img src="${item.thumb}" class="thumb"><div class="count-badge">${item.count}</div></div><div class="item-info"><div class="title-row"><span class="item-title">${item.title}</span><span>${item.mode==='360'?'🌐':'📦'}</span></div><span class="item-date">${item.dateLabel}</span></div><div class="icon-btn" onclick="viewItem(${item.id})">▶</div><div class="icon-btn" onclick="deleteItem(${item.id})">🗑</div>`;
                         list.appendChild(div);
                     });
                 }
@@ -259,6 +287,7 @@
             const transaction = db.transaction(["photos"], "readonly");
             transaction.objectStore("photos").get(id).onsuccess = e => {
                 capturedImages = e.target.result.data;
+                offsets = e.target.result.offsets || capturedImages.map(() => ({x:0, y:0}));
                 startViewer(false);
             };
         };
