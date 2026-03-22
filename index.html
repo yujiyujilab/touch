@@ -11,46 +11,39 @@
         .screen.active { display: flex; }
         h1 { font-size: 4.5rem; font-weight: 900; letter-spacing: 0.2em; margin: 0 0 2rem 0.2em; }
         
-        /* UI Components */
-        .btn { background: #2c2c2e; color: #fff; border: 1px solid #3a3a3c; padding: 18px; font-size: 1rem; border-radius: 14px; margin: 8px; cursor: pointer; width: 85%; max-width: 320px; text-align: center; -webkit-tap-highlight-color: transparent; }
+        .btn { background: #2c2c2e; color: #fff; border: 1px solid #3a3a3c; padding: 18px; font-size: 1rem; border-radius: 14px; margin: 8px; cursor: pointer; width: 85%; max-width: 320px; text-align: center; }
         .btn-accent { background: var(--accent-color); border: none; font-weight: bold; }
         
-        /* CAMERA & FIXED GUIDELINES */
         #camera-container { width: 100%; height: 65%; background: #000; position: relative; overflow: hidden; }
         video { width: 100%; height: 100%; object-fit: cover; }
         canvas { display: none; }
+        .guide { position: absolute; background: rgba(255,255,255,0.3); pointer-events: none; }
+        .v-line-1 { width: 1px; height: 100%; left: 33.3%; } .v-line-2 { width: 1px; height: 100%; left: 66.6%; }
+        .h-line-1 { width: 100%; height: 1px; top: 33.3%; left: 0; } .h-line-2 { width: 100%; height: 1px; top: 66.6%; left: 0; }
         
-        .guide { position: absolute; background: rgba(255,255,255,0.4); pointer-events: none; z-index: 10; }
-        .v-line-1 { width: 1px; height: 100%; left: 33.33%; top: 0; } 
-        .v-line-2 { width: 1px; height: 100%; left: 66.66%; top: 0; }
-        .h-line-1 { width: 100%; height: 1px; top: 33.33%; left: 0; } 
-        .h-line-2 { width: 100%; height: 1px; top: 66.66%; left: 0; }
-        
-        /* Layout for Modern OS (Safe Area) */
         .controls { width: 100%; height: 35%; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; background: #000; padding-top: 25px; padding-bottom: calc(30px + env(safe-area-inset-bottom)); }
-        #shutter { width: 80px; height: 80px; border-radius: 50%; background: #fff; border: 6px solid #333; margin-bottom: 25px; box-shadow: 0 0 15px rgba(255,255,255,0.2); }
+        #shutter { width: 80px; height: 80px; border-radius: 50%; background: #fff; border: 6px solid #333; margin-bottom: 25px; }
         .nav-row { display: flex; width: 92%; justify-content: space-around; margin-top: auto; }
         .nav-row .btn { width: 45%; margin: 0; padding: 15px; font-size: 0.9rem; }
 
-        /* VIEWER */
         #viewer-area { width: 100%; height: 65%; position: relative; background: #000; display: flex; align-items: center; justify-content: center; touch-action: none; }
         #viewer-img { max-width: 100%; max-height: 100%; pointer-events: none; }
         
-        /* LIBRARY */
-        #library h2 { margin-top: 60px; }
-        .sort-bar { display: flex; gap: 15px; margin-bottom: 20px; }
-        .sort-btn { background: #333; color: #999; border: none; padding: 6px 15px; border-radius: 20px; font-size: 0.75rem; }
-        .sort-btn.active { background: #555; color: #fff; }
+        /* LIBRARY 集約デザイン */
+        #lib-list { width: 92%; height: 50%; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .lib-item { background: var(--card-bg); padding: 10px; border-radius: 16px; display: flex; align-items: center; border: 1px solid #333; }
         
-        #lib-list { width: 92%; height: 50%; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
-        .lib-item { background: var(--card-bg); padding: 12px; border-radius: 16px; display: flex; align-items: center; border: 1px solid #333; }
-        .thumb { width: 55px; height: 55px; border-radius: 10px; object-fit: cover; margin-right: 15px; background: #333; border: 1px solid #444; }
+        .thumb-container { position: relative; margin-right: 12px; }
+        .thumb { width: 60px; height: 60px; border-radius: 10px; object-fit: cover; background: #333; }
+        .count-badge { position: absolute; bottom: -4px; right: -4px; background: var(--accent-color); color: white; font-size: 0.6rem; padding: 2px 5px; border-radius: 8px; font-weight: bold; border: 2px solid var(--card-bg); }
+
         .item-info { flex-grow: 1; min-width: 0; }
-        .item-title { display: block; font-size: 0.95rem; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .item-date { display: block; font-size: 0.7rem; color: #555; margin-top: 3px; }
+        .title-row { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
+        .item-title { font-size: 0.95rem; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .mode-icon { font-size: 0.8rem; color: #888; }
+        .item-date { display: block; font-size: 0.7rem; color: #555; }
         
-        .icon-btn { width: 46px; height: 46px; border-radius: 14px; border: 1px solid #3a3a3c; display: flex; align-items: center; justify-content: center; margin-left: 10px; font-size: 1.2rem; cursor: pointer; background: #2c2c2e; transition: all 0.2s; }
-        .icon-btn:active { background: #444; transform: scale(0.9); }
+        .icon-btn { width: 44px; height: 44px; border-radius: 12px; border: 1px solid #3a3a3c; display: flex; align-items: center; justify-content: center; margin-left: 8px; font-size: 1.1rem; cursor: pointer; background: #2c2c2e; color: #fff; }
     </style>
 </head>
 <body>
@@ -68,7 +61,7 @@
             <div class="guide h-line-1"></div><div class="guide h-line-2"></div>
         </div>
         <div class="controls">
-            <div id="counter" style="color:#444; font-size:0.75rem; margin-bottom:12px; font-weight:bold;">0 FRAMES</div>
+            <div id="counter" style="color:#444; font-size:0.75rem; margin-bottom:12px;">0 FRAMES</div>
             <div id="shutter" onclick="captureFrame()"></div>
             <div class="nav-row">
                 <button class="btn" onclick="nav('home')">CANCEL</button>
@@ -81,7 +74,7 @@
     <div id="viewer" class="screen">
         <div id="viewer-area"><img id="viewer-img"></div>
         <div class="controls">
-            <button class="btn" onclick="runAutoSpin()" style="width:130px; padding:12px; font-size:0.85rem; margin-bottom:20px; background:#222; border-color:#444;">▶ AUTO PLAY</button>
+            <button class="btn" onclick="runAutoSpin()" style="width:130px; padding:12px; font-size:0.85rem; margin-bottom:20px; background:#222;">▶ AUTO PLAY</button>
             <div class="nav-row" id="preview-controls">
                 <button class="btn" onclick="nav('camera')">RETAKE</button>
                 <button class="btn btn-accent" onclick="saveToLibrary()">SAVE</button>
@@ -94,18 +87,19 @@
     </div>
 
     <div id="library" class="screen">
-        <h2 style="margin-top:60px; letter-spacing:0.1em;">LIBRARY</h2>
-        <div class="sort-bar">
-            <button id="sort-date" class="sort-btn active" onclick="openLibrary('date')">DATE</button>
-            <button id="sort-name" class="sort-btn" onclick="openLibrary('name')">NAME</button>
+        <h2 style="margin-top:60px;">LIBRARY</h2>
+        <div style="display:flex; gap:10px; margin-bottom:15px;">
+            <button class="btn" style="width:80px; padding:8px; font-size:0.7rem;" onclick="openLibrary('date')">DATE</button>
+            <button class="btn" style="width:80px; padding:8px; font-size:0.7rem;" onclick="openLibrary('name')">NAME</button>
         </div>
         <div id="lib-list"></div>
-        <button class="btn" onclick="nav('home')" style="margin-top:30px;">HOME</button>
+        <button class="btn" onclick="nav('home')" style="margin-top:25px;">HOME</button>
     </div>
 
     <script>
         let capturedImages = [];
         let isDragging = false, lastX = 0, velocity = 0, currentPos = 0, isAutoSpinning = false;
+        let startAngle = null, currentAngle = 0, maxDiffAngle = 0;
         const friction = 0.92, dragDamping = 0.4;
         let db;
 
@@ -113,11 +107,25 @@
         request.onupgradeneeded = e => { e.target.result.createObjectStore("photos", { keyPath: "id", autoIncrement: true }); };
         request.onsuccess = e => { db = e.target.result; };
 
+        // ジャイロセンサーの監視
+        window.addEventListener('deviceorientation', e => {
+            if (e.alpha !== null) {
+                currentAngle = e.alpha;
+                if (startAngle === null && capturedImages.length > 0) startAngle = currentAngle;
+                if (startAngle !== null) {
+                    let diff = Math.abs(currentAngle - startAngle);
+                    if (diff > 180) diff = 360 - diff;
+                    if (diff > maxDiffAngle) maxDiffAngle = diff;
+                }
+            }
+        });
+
         function nav(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
             if(id === 'camera') initCamera(); else stopCamera();
             isAutoSpinning = false;
+            startAngle = null; maxDiffAngle = 0;
         }
 
         async function initCamera() {
@@ -126,7 +134,11 @@
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 1280, height: 1280 } });
                 document.getElementById('video').srcObject = stream;
-            } catch (e) { alert("カメラ起動エラー"); }
+                // iOS13+ のためのセンサー許可（必要な場合）
+                if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    DeviceOrientationEvent.requestPermission();
+                }
+            } catch (e) { console.log("Camera Error"); }
         }
 
         function stopCamera() {
@@ -177,18 +189,27 @@
 
         function saveToLibrary() {
             const now = new Date();
-            const dateStr = now.toLocaleString('ja-JP', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+            const dateStr = now.toLocaleString();
             const title = prompt("名前をつけて保存", dateStr);
             if(!title) return;
+            
+            // 90度以上の回転があれば360度モードとみなす
+            const mode = maxDiffAngle > 90 ? '360' : 'obj';
+            
             const transaction = db.transaction(["photos"], "readwrite");
-            transaction.objectStore("photos").add({ title, data: capturedImages, thumb: capturedImages[0], timestamp: now.getTime(), dateLabel: now.toLocaleString() });
+            transaction.objectStore("photos").add({ 
+                title, 
+                data: capturedImages, 
+                thumb: capturedImages[0], 
+                timestamp: now.getTime(), 
+                dateLabel: dateStr,
+                mode: mode,
+                count: capturedImages.length
+            });
             transaction.oncomplete = () => { alert("保存しました"); nav('home'); };
         }
 
         function openLibrary(sortType = 'date') {
-            document.getElementById('sort-date').classList.toggle('active', sortType === 'date');
-            document.getElementById('sort-name').classList.toggle('active', sortType === 'name');
-            
             const list = document.getElementById('lib-list'); list.innerHTML = "";
             const transaction = db.transaction(["photos"], "readonly");
             let items = [];
@@ -199,11 +220,18 @@
                     if(sortType === 'date') items.sort((a,b) => b.timestamp - a.timestamp);
                     else items.sort((a,b) => a.title.localeCompare(b.title));
                     items.forEach(item => {
+                        const modeIcon = item.mode === '360' ? '🌐' : '📦';
                         const div = document.createElement('div'); div.className = 'lib-item';
                         div.innerHTML = `
-                            <img src="${item.thumb || item.data[0]}" class="thumb">
+                            <div class="thumb-container">
+                                <img src="${item.thumb || item.data[0]}" class="thumb">
+                                <div class="count-badge">${item.count || '?'}</div>
+                            </div>
                             <div class="item-info">
-                                <span class="item-title">${item.title}</span>
+                                <div class="title-row">
+                                    <span class="item-title">${item.title}</span>
+                                    <span class="mode-icon">${modeIcon}</span>
+                                </div>
                                 <span class="item-date">${item.dateLabel || ""}</span>
                             </div>
                             <div class="icon-btn" onclick="viewItem(${item.id})">▶</div>
@@ -225,7 +253,7 @@
         };
 
         window.deleteItem = (id) => {
-            if(!confirm("このデータを削除しますか？")) return;
+            if(!confirm("削除しますか？")) return;
             const transaction = db.transaction(["photos"], "readwrite");
             transaction.objectStore("photos").delete(id).onsuccess = () => openLibrary();
         };
@@ -234,7 +262,7 @@
         vArea.addEventListener('pointerdown', e => { if(isAutoSpinning) return; isDragging = true; lastX = e.clientX; velocity = 0; vArea.setPointerCapture(e.pointerId); });
         vArea.addEventListener('pointermove', e => {
             if(!isDragging || isAutoSpinning) return;
-            velocity += ((e.clientX - lastX) / window.innerWidth) * (capturedImages.length * 2.0); // 係数2.0
+            velocity += ((e.clientX - lastX) / window.innerWidth) * (capturedImages.length * 1.5);
             lastX = e.clientX;
         });
         vArea.addEventListener('pointerup', () => isDragging = false);
