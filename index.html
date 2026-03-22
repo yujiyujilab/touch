@@ -1,75 +1,401 @@
-// --- 共通変数に追加 ---
-let autoPlaySpeed = 1.0; // デフォルト速度
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>TOUCH</title>
+    <style>
+        :root { --bg-color: #000; --text-color: #fff; --accent-color: #ff3b30; --safe-color: #4cd964; --card-bg: #1c1c1e; }
+        body { margin: 0; padding: 0; background: var(--bg-color); color: var(--text-color); font-family: -apple-system, sans-serif; overflow: hidden; -webkit-user-select: none; user-select: none; }
+        .screen { display: none; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; flex-direction: column; align-items: center; }
+        .screen.active { display: flex; }
+        h1 { font-size: 4.5rem; font-weight: 900; letter-spacing: 0.2em; margin: 15vh 0 2rem 0.2em; }
+        
+        /* Buttons */
+        .btn { background: #2c2c2e; color: #fff; padding: 18px; font-size: 1rem; border-radius: 14px; margin: 8px; cursor: pointer; width: 85%; max-width: 320px; text-align: center; border: none; }
+        .btn-red { background: var(--accent-color) !important; font-weight: bold; }
+        .mini-btn { background: #333; color: #fff; border: 1px solid #444; padding: 12px; border-radius: 12px; font-size: 0.75rem; flex: 1; max-width: 150px; text-align: center; cursor: pointer; }
+        .nav-row { display: flex; width: 92%; justify-content: space-around; margin-top: auto; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+        .nav-row .btn { width: 45%; margin: 0; padding: 12px; font-size: 0.8rem; }
 
-// --- プレビュー用HTMLの書き換え部分 ---
-/* <div id="preview-ui" ...> 内を以下のように構成 
-*/
-<div id="preview-ui" style="width:100%; display:flex; flex-direction:column; align-items:center; gap:15px;">
-    <div class="btn-row" style="gap:10px;">
-        <div id="btn-loop" class="mini-btn" onclick="toggleLoopPlay()" style="max-width:120px; border: 2px solid var(--accent-color);">LOOP: OFF</div>
-        <div id="btn-speed" class="mini-btn" onclick="cycleSpeed()" style="max-width:80px;">×1.0</div>
+        /* Camera & Viewer Area */
+        #camera-container, #viewer-area { width: 100vw; height: 60vh; background: #000; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        video, .viewer-layer, #onion-guide { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
+        #onion-guide { z-index: 5; opacity: 0.3; display: none; pointer-events: none; }
+        #onion-layer { z-index: 5; display: none; } 
+        #current-layer { z-index: 10; touch-action: none; transition: opacity 0.1s; } 
+        #current-layer.dragging { opacity: 0.6; } 
+
+        /* Grid & Leveler */
+        .grid { position: absolute; background: rgba(255,255,255,0.3); pointer-events: none; z-index: 15; transition: background 0.2s, box-shadow 0.2s; }
+        .grid.aligned { background: var(--safe-color); box-shadow: 0 0 8px var(--safe-color); }
+        #leveler-dot { position: absolute; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #fff; z-index: 16; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+
+        /* Controls */
+        .controls { width: 100%; flex-grow: 1; display: flex; flex-direction: column; align-items: center; background: #000; padding-top: 10px; z-index: 20; }
+        #shutter { width: 70px; height: 70px; border-radius: 50%; background: #fff; border: 5px solid #333; margin-bottom: 10px; transition: background 0.1s; }
+        #shutter:active { background: #ccc; }
+
+        /* Library List */
+        .lib-header { width: 92%; display: flex; justify-content: space-between; align-items: center; margin-top: 50px; }
+        #lib-list { width: 92%; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 10px 0; }
+        .lib-item { background: var(--card-bg); padding: 12px; border-radius: 18px; display: flex; align-items: center; border: 1px solid #2c2c2e; }
+        .thumb-wrap { position: relative; width: 64px; height: 64px; flex-shrink: 0; }
+        .thumb { width: 100%; height: 100%; border-radius: 14px; object-fit: cover; }
+        .badge { position: absolute; background: var(--accent-color); color: white; font-size: 0.6rem; font-weight: bold; padding: 2px 5px; border-radius: 8px; border: 2px solid var(--card-bg); }
+        .badge-br { bottom: -4px; right: -4px; }
+        .badge-bl { bottom: -4px; left: -4px; background: #333; }
+        .item-info { flex: 1; margin-left: 15px; overflow: hidden; display: flex; flex-direction: column; gap: 2px; }
+        .item-title { font-weight: bold; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #fff; }
+        .item-date { font-size: 0.7rem; color: #888; }
+        .edit-name-btn { background: none; border: none; color: #888; font-size: 0.9rem; padding: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div id="home" class="screen active">
+        <h1>TOUCH</h1>
+        <button class="btn btn-red" onclick="nav('camera')">CAPTURE</button>
+        <button class="btn" onclick="openLibrary()">LIBRARY</button>
     </div>
-    <div class="btn-row">
-        <div class="mini-btn" onclick="setMode('edit')" style="max-width:210px; opacity:0.7;">EDIT MODE</div>
+
+    <div id="camera" class="screen">
+        <div id="camera-container">
+            <video id="video" autoplay playsinline muted></video>
+            <img id="onion-guide">
+            <div id="grid-v1" class="grid" style="width:1px; height:100%; left:33.3%;"></div>
+            <div id="grid-v2" class="grid" style="width:1px; height:100%; left:66.6%;"></div>
+            <div id="grid-h1" class="grid" style="width:100%; height:1px; top:33.3%;"></div>
+            <div id="grid-h2" class="grid" style="width:100%; height:1px; top:66.6%;"></div>
+            <div id="grid-h3" class="grid" style="width:100%; height:1px; top:50%; display:none;"></div>
+            <div id="leveler-dot"></div>
+        </div>
+        <div class="controls">
+            <div id="counter" style="color:#666; font-size:0.7rem; margin-bottom:5px;">0 FRAMES</div>
+            <div id="shutter" onclick="captureFrame()"></div>
+            <div style="display:flex; gap:10px; width:90%; justify-content:center; margin-bottom:10px;">
+                <div id="mode-obj" class="mini-btn btn-red" onclick="setCaptureMode('obj')">OBJ (📦)</div>
+                <div id="mode-360" class="mini-btn" onclick="setCaptureMode('360')">360 (🌐)</div>
+                <div id="guide-toggle" class="mini-btn" style="max-width:80px;" onclick="toggleOnionGuide()">GUIDE</div>
+            </div>
+            <div class="nav-row">
+                <button class="btn" onclick="nav('home')">CANCEL</button>
+                <button class="btn" onclick="startViewer(true)">DONE</button>
+            </div>
+        </div>
+        <canvas id="buffer" style="display:none;"></canvas>
     </div>
-</div>
 
-// --- JavaScript ロジックの更新 ---
+    <div id="viewer" class="screen">
+        <div id="viewer-area">
+            <img id="onion-layer" class="viewer-layer">
+            <img id="current-layer" class="viewer-layer">
+        </div>
+        <div class="controls">
+            <div id="preview-ui" style="width:100%; display:flex; flex-direction:column; align-items:center; gap:12px;">
+                <div style="display:flex; gap:10px; width:90%; justify-content:center;">
+                    <div id="btn-loop" class="mini-btn" onclick="toggleLoopPlay()" style="max-width:140px; border:2px solid var(--accent-color);">LOOP: OFF</div>
+                    <div id="btn-speed" class="mini-btn" onclick="cycleSpeed()" style="max-width:80px;">×1.0</div>
+                </div>
+                <div class="mini-btn" onclick="setMode('edit')" style="width:80%; max-width:240px; opacity:0.7;">EDIT MODE</div>
+            </div>
 
-function cycleSpeed() {
-    // 1.0 -> 2.0 -> 0.5 -> 1.0 の順で切り替え
-    if (autoPlaySpeed === 1.0) autoPlaySpeed = 2.0;
-    else if (autoPlaySpeed === 2.0) autoPlaySpeed = 0.5;
-    else autoPlaySpeed = 1.0;
-    
-    document.getElementById('btn-speed').innerText = `×${autoPlaySpeed.toFixed(1)}`;
-}
+            <div id="edit-ui" style="width:100%; display:none; flex-direction:column; align-items:center;">
+                <div style="display:flex; align-items:center; gap:15px; margin-bottom:10px;">
+                    <div class="mini-btn" style="max-width:50px;" onclick="stepFrame(-1)">◀</div>
+                    <div id="frame-counter" style="color:#fff; font-weight:bold; font-family:monospace; min-width:80px; text-align:center;">[0/0]</div>
+                    <div class="mini-btn" style="max-width:50px;" onclick="stepFrame(1)">▶</div>
+                </div>
+                <div style="display:flex; gap:8px; width:90%; justify-content:center;">
+                    <div class="mini-btn" onclick="resetOffset()">RESET</div>
+                    <div class="mini-btn" onclick="resetAllOffsets()">ALL RESET</div>
+                    <div class="mini-btn" onclick="setMode('preview')" style="background:#444;">EXIT</div>
+                </div>
+            </div>
 
-function toggleLoopPlay() {
-    isAutoPlaying = !isAutoPlaying;
-    const btn = document.getElementById('btn-loop');
-    
-    if (isAutoPlaying) {
-        btn.innerText = "LOOP: ON";
-        btn.classList.add('btn-red');
-        runLoopAnimation();
-    } else {
-        btn.innerText = "LOOP: OFF";
-        btn.classList.remove('btn-red');
-    }
-}
+            <div class="nav-row" id="save-controls">
+                <button class="btn" onclick="nav('camera')">RETAKE</button>
+                <button class="btn" onclick="saveToLibrary(false)">SAVE</button>
+            </div>
+            <div class="nav-row" id="lib-nav-controls" style="display:none;">
+                <button class="btn" id="btn-viewer-left" onclick="confirmAndExit('home')">HOME</button>
+                <button class="btn" id="btn-viewer-right" onclick="confirmAndExit('library')">BACK</button>
+            </div>
+        </div>
+    </div>
 
-function runLoopAnimation() {
-    if (!isAutoPlaying) return;
+    <div id="library" class="screen">
+        <div class="lib-header">
+            <h2 style="margin:0;">LIBRARY</h2>
+            <div style="display:flex; gap:5px;">
+                <button id="sort-date" class="mini-btn" style="min-width:60px;" onclick="openLibrary('date')">DATE</button>
+                <button id="sort-name" class="mini-btn" style="min-width:60px;" onclick="openLibrary('name')">NAME</button>
+            </div>
+        </div>
+        <div id="lib-list"></div>
+        <div class="nav-row"><button class="btn" onclick="nav('home')" style="width:90%">HOME</button></div>
+    </div>
 
-    // 1フレームあたりの移動量を枚数と速度から計算
-    // 1秒間に約30〜60回呼ばれる前提で、2秒で一周(speed 1.0時)をベースにする
-    const baseIncrement = (capturedImages.length / 120) * autoPlaySpeed;
-    currentPos += baseIncrement;
-    
-    updateImage();
-    requestAnimationFrame(runLoopAnimation);
-}
+    <script>
+        let capturedImages = [], offsets = [], captureMode = 'obj', currentOpenId = null;
+        let isDragging = false, isEditScreen = false, isAutoPlaying = false, isOnionEnabled = false;
+        let hasUnsavedChanges = false, autoPlaySpeed = 1.0;
+        let lastX = 0, lastY = 0, velocity = 0, currentPos = 0;
+        let tiltX = 0, tiltY = 0, db;
 
-// 既存の startViewer も少し修正（DONE後は単発再生ではなくループを回しても面白いかもしれません）
-function startViewer(isNewCapture) {
-    if(capturedImages.length < 2) return;
-    if(offsets.length === 0) offsets = capturedImages.map(() => ({x:0, y:0}));
-    currentPos = 0; 
-    setMode('preview');
-    
-    // UIの初期化
-    isAutoPlaying = false;
-    autoPlaySpeed = 1.0;
-    document.getElementById('btn-loop').innerText = "LOOP: OFF";
-    document.getElementById('btn-loop').classList.remove('btn-red');
-    document.getElementById('btn-speed').innerText = "×1.0";
+        // DB Initialization
+        const request = indexedDB.open("TouchAppDB", 1);
+        request.onupgradeneeded = e => { e.target.result.createObjectStore("photos", { keyPath: "id", autoIncrement: true }); };
+        request.onsuccess = e => { db = e.target.result; };
 
-    document.getElementById('save-controls').style.display = isNewCapture ? 'flex' : 'none';
-    document.getElementById('lib-nav-controls').style.display = isNewCapture ? 'none' : 'flex';
-    nav('viewer'); 
-    renderLoop();
-    
-    // DONE後は景気良く自動でループ開始！
-    if (isNewCapture) toggleLoopPlay(); 
-}
+        // Navigation
+        function nav(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            if(id === 'camera') initCamera(); else stopCamera();
+            isAutoPlaying = false; velocity = 0;
+        }
+
+        // Camera Logic
+        async function initCamera() {
+            capturedImages = []; offsets = []; currentOpenId = null; hasUnsavedChanges = false;
+            document.getElementById('counter').innerText = `0 FRAMES`;
+            document.getElementById('onion-guide').style.display = 'none';
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 1280, height: 1280 } });
+                document.getElementById('video').srcObject = stream;
+                if (window.DeviceOrientationEvent) {
+                    window.addEventListener('deviceorientation', handleOrientation);
+                }
+            } catch (e) { alert("Camera Access Denied"); }
+        }
+
+        function handleOrientation(e) {
+            tiltX = e.gamma; tiltY = e.beta;
+            const dot = document.getElementById('leveler-dot');
+            const grids = document.querySelectorAll('.grid');
+            const moveX = Math.max(-50, Math.min(50, tiltX));
+            const moveY = Math.max(-50, Math.min(50, tiltY - 70));
+            dot.style.transform = `translate(calc(-50% + ${moveX}px), calc(-50% + ${moveY}px))`;
+            const isAligned = Math.abs(tiltX) < 3 && Math.abs(tiltY - 70) < 3;
+            grids.forEach(g => g.classList.toggle('aligned', isAligned));
+        }
+
+        function stopCamera() {
+            const video = document.getElementById('video');
+            if(video.srcObject) { video.srcObject.getTracks().forEach(t => t.stop()); video.srcObject = null; }
+            window.removeEventListener('deviceorientation', handleOrientation);
+        }
+
+        function setCaptureMode(mode) {
+            captureMode = mode;
+            document.getElementById('mode-obj').classList.toggle('btn-red', mode === 'obj');
+            document.getElementById('mode-360').classList.toggle('btn-red', mode === '360');
+            const vLines = [document.getElementById('grid-v1'), document.getElementById('grid-v2')];
+            const hLines = [document.getElementById('grid-h1'), document.getElementById('grid-h2')];
+            const h3 = document.getElementById('grid-h3');
+            if (mode === '360') {
+                vLines.forEach(l => l.style.display = 'none');
+                hLines[0].style.top = '25%'; hLines[1].style.top = '75%'; h3.style.display = 'block';
+            } else {
+                vLines.forEach(l => l.style.display = 'block');
+                hLines[0].style.top = '33.3%'; hLines[1].style.top = '66.6%'; h3.style.display = 'none';
+            }
+        }
+
+        function toggleOnionGuide() {
+            isOnionEnabled = !isOnionEnabled;
+            document.getElementById('guide-toggle').classList.toggle('btn-red', isOnionEnabled);
+            updateOnionGuide();
+        }
+
+        function updateOnionGuide() {
+            const guide = document.getElementById('onion-guide');
+            if (isOnionEnabled && capturedImages.length > 0) {
+                guide.src = capturedImages[capturedImages.length - 1];
+                guide.style.display = 'block';
+            } else { guide.style.display = 'none'; }
+        }
+
+        function captureFrame() {
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('buffer');
+            canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            capturedImages.push(canvas.toDataURL('image/jpeg', 0.6));
+            offsets.push({x: 0, y: 0});
+            document.getElementById('counter').innerText = `${capturedImages.length} FRAMES`;
+            updateOnionGuide();
+        }
+
+        // Viewer Logic
+        function startViewer(isNewCapture) {
+            if(capturedImages.length < 2) return;
+            currentPos = 0; autoPlaySpeed = 1.0; isAutoPlaying = false;
+            setMode('preview');
+            document.getElementById('save-controls').style.display = isNewCapture ? 'flex' : 'none';
+            document.getElementById('lib-nav-controls').style.display = isNewCapture ? 'none' : 'flex';
+            nav('viewer'); renderLoop();
+            if (isNewCapture) toggleLoopPlay();
+        }
+
+        function setMode(mode) {
+            isEditScreen = (mode === 'edit');
+            isAutoPlaying = false;
+            document.getElementById('preview-ui').style.display = isEditScreen ? 'none' : 'flex';
+            document.getElementById('edit-ui').style.display = isEditScreen ? 'flex' : 'none';
+            document.getElementById('onion-layer').style.display = isEditScreen ? 'block' : 'none';
+            toggleLibEditButtons(isEditScreen && hasUnsavedChanges);
+            updateImage();
+        }
+
+        function toggleLibEditButtons(show) {
+            if (currentOpenId === null) return;
+            const container = document.getElementById('lib-nav-controls');
+            const leftBtn = document.getElementById('btn-viewer-left');
+            const rightBtn = document.getElementById('btn-viewer-right');
+            if (isEditScreen) {
+                container.style.display = show ? 'flex' : 'none';
+                leftBtn.innerText = "SAVE AS"; rightBtn.innerText = "UPDATE";
+                leftBtn.onclick = () => saveToLibrary(false); rightBtn.onclick = () => saveToLibrary(true);
+            } else {
+                container.style.display = 'flex';
+                leftBtn.innerText = "HOME"; rightBtn.innerText = "BACK";
+                leftBtn.onclick = () => confirmAndExit('home'); rightBtn.onclick = () => confirmAndExit('library');
+            }
+        }
+
+        function updateImage() {
+            const total = capturedImages.length; if(total === 0) return;
+            const idx = (Math.floor(currentPos) % total + total) % total;
+            const prevIdx = (idx - 1 + total) % total;
+            if (isEditScreen) document.getElementById('frame-counter').innerText = `[${idx + 1} / ${total}]`;
+            const cImg = document.getElementById('current-layer');
+            const oImg = document.getElementById('onion-layer');
+            cImg.src = capturedImages[idx];
+            cImg.style.transform = `translate(${offsets[idx].x}px, ${offsets[idx].y}px)`;
+            if (isEditScreen) {
+                oImg.src = capturedImages[prevIdx];
+                oImg.style.transform = `translate(${offsets[prevIdx].x}px, ${offsets[prevIdx].y}px)`;
+            }
+        }
+
+        function toggleLoopPlay() {
+            isAutoPlaying = !isAutoPlaying;
+            const btn = document.getElementById('btn-loop');
+            btn.innerText = isAutoPlaying ? "LOOP: ON" : "LOOP: OFF";
+            btn.classList.toggle('btn-red', isAutoPlaying);
+            if (isAutoPlaying) runLoopAnimation();
+        }
+
+        function runLoopAnimation() {
+            if (!isAutoPlaying || isEditScreen) return;
+            currentPos += (capturedImages.length / 180) * autoPlaySpeed;
+            updateImage();
+            requestAnimationFrame(runLoopAnimation);
+        }
+
+        function cycleSpeed() {
+            if (autoPlaySpeed === 1.0) autoPlaySpeed = 2.0;
+            else if (autoPlaySpeed === 2.0) autoPlaySpeed = 0.5;
+            else autoPlaySpeed = 1.0;
+            document.getElementById('btn-speed').innerText = `×${autoPlaySpeed.toFixed(1)}`;
+        }
+
+        function stepFrame(dir) { isAutoPlaying = false; currentPos = Math.round(currentPos) + dir; updateImage(); }
+        function resetOffset() { const idx = (Math.floor(currentPos) % capturedImages.length + capturedImages.length) % capturedImages.length; offsets[idx] = {x:0, y:0}; markChanged(); updateImage(); }
+        function resetAllOffsets() { if(confirm("全てリセットしますか？")) { offsets = capturedImages.map(() => ({x:0, y:0})); markChanged(); updateImage(); } }
+        function markChanged() { hasUnsavedChanges = true; if(currentOpenId !== null && isEditScreen) toggleLibEditButtons(true); }
+
+        // Interaction
+        const vArea = document.getElementById('viewer-area');
+        vArea.addEventListener('pointerdown', e => { 
+            isDragging = true; lastX = e.clientX; lastY = e.clientY; velocity = 0; 
+            if(isEditScreen) { document.getElementById('current-layer').classList.add('dragging'); markChanged(); }
+            vArea.setPointerCapture(e.pointerId); 
+        });
+        vArea.addEventListener('pointermove', e => {
+            if(!isDragging || isAutoPlaying) return;
+            const idx = (Math.floor(currentPos) % capturedImages.length + capturedImages.length) % capturedImages.length;
+            if (isEditScreen) { offsets[idx].x += (e.clientX - lastX); offsets[idx].y += (e.clientY - lastY); updateImage(); }
+            else { velocity = ((e.clientX - lastX) / window.innerWidth) * (capturedImages.length * 0.8); currentPos += velocity; updateImage(); }
+            lastX = e.clientX; lastY = e.clientY;
+        });
+        vArea.addEventListener('pointerup', () => { isDragging = false; document.getElementById('current-layer').classList.remove('dragging'); });
+
+        function renderLoop() {
+            if(!document.getElementById('viewer').classList.contains('active')) return;
+            if(!isAutoPlaying && !isDragging && Math.abs(velocity) > 0.01) { velocity *= 0.95; currentPos += velocity; updateImage(); }
+            requestAnimationFrame(renderLoop);
+        }
+
+        // Library & Save
+        function saveToLibrary(isUpdate) {
+            const transaction = db.transaction(["photos"], "readwrite");
+            const store = transaction.objectStore("photos");
+            const idx = (Math.floor(currentPos) % capturedImages.length + capturedImages.length) % capturedImages.length;
+            if (isUpdate && currentOpenId !== null) {
+                store.get(currentOpenId).onsuccess = e => {
+                    const data = e.target.result; data.offsets = offsets; data.thumb = capturedImages[idx];
+                    store.put(data).onsuccess = () => { hasUnsavedChanges = false; alert("更新完了"); setMode('preview'); };
+                };
+            } else {
+                const title = prompt("作品名", new Date().toLocaleString());
+                if(!title) return;
+                store.add({ title, data: capturedImages, offsets, thumb: capturedImages[idx], timestamp: Date.now(), count: capturedImages.length, mode: captureMode })
+                .onsuccess = () => { hasUnsavedChanges = false; nav('home'); };
+            }
+        }
+
+        function openLibrary(sortBy = 'date') {
+            const list = document.getElementById('lib-list'); list.innerHTML = "";
+            document.getElementById('sort-date').classList.toggle('btn-red', sortBy === 'date');
+            document.getElementById('sort-name').classList.toggle('btn-red', sortBy === 'name');
+            const items = [];
+            db.transaction(["photos"], "readonly").objectStore("photos").openCursor().onsuccess = e => {
+                const cursor = e.target.result;
+                if(cursor) { items.push(cursor.value); cursor.continue(); }
+                else {
+                    items.sort((a,b) => sortBy === 'name' ? a.title.localeCompare(b.title) : b.timestamp - a.timestamp);
+                    items.forEach(item => {
+                        const div = document.createElement('div'); div.className = 'lib-item';
+                        div.innerHTML = `<div class="thumb-wrap"><img src="${item.thumb}" class="thumb"><div class="badge badge-bl">${item.mode==='360'?'🌐':'📦'}</div><div class="badge badge-br">${item.count}</div></div>
+                            <div class="item-info"><div><span class="item-title">${item.title}</span><button class="edit-name-btn" onclick="renameItem(${item.id}, '${item.title.replace(/'/g, "\\'")}')">✎</button></div><span class="item-date">${new Date(item.timestamp).toLocaleString()}</span></div>
+                            <div style="display:flex; gap:5px;"><button class="mini-btn" style="min-width:40px;" onclick="viewItem(${item.id})">▶</button><button class="mini-btn" style="min-width:40px; color:#666;" onclick="deleteItem(${item.id})">🗑</button></div>`;
+                        list.appendChild(div);
+                    });
+                }
+            };
+            nav('library');
+        }
+
+        window.viewItem = id => {
+            db.transaction(["photos"], "readonly").objectStore("photos").get(id).onsuccess = e => {
+                const item = e.target.result; capturedImages = item.data; offsets = item.offsets || item.data.map(()=>({x:0,y:0}));
+                currentOpenId = id; hasUnsavedChanges = false; startViewer(false);
+            };
+        };
+
+        window.renameItem = (id, oldTitle) => {
+            const newTitle = prompt("新しい作品名", oldTitle);
+            if (!newTitle || newTitle === oldTitle) return;
+            const transaction = db.transaction(["photos"], "readwrite");
+            const store = transaction.objectStore("photos");
+            store.get(id).onsuccess = e => {
+                const data = e.target.result; data.title = newTitle;
+                store.put(data).onsuccess = () => openLibrary();
+            };
+        };
+
+        window.deleteItem = id => { if(confirm("削除しますか？")) { db.transaction(["photos"], "readwrite").objectStore("photos").delete(id).onsuccess = () => openLibrary(); } };
+
+        function confirmAndExit(target) {
+            if (hasUnsavedChanges) {
+                const msg = "変更が保存されていません。\n\nこのまま移動すると位置調整データが破棄されます。保存する場合は「キャンセル」で戻り、EDIT MODE内の [SAVE AS] または [UPDATE] を押してください。\n\n（このまま破棄して移動しますか？）";
+                if (!confirm(msg)) return;
+            }
+            hasUnsavedChanges = false; if (target === 'home') nav('home'); else openLibrary();
+        }
+    </script>
+</body>
+</html>
