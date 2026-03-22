@@ -14,33 +14,33 @@
         .btn { background: #2c2c2e; color: #fff; border: 1px solid #3a3a3c; padding: 18px; font-size: 1rem; border-radius: 14px; margin: 8px; cursor: pointer; width: 85%; max-width: 320px; text-align: center; border: none; }
         .btn-accent { background: var(--accent-color); font-weight: bold; }
         
-        #camera-container { width: 100%; height: 65%; background: #000; position: relative; overflow: hidden; }
-        video { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 1; }
+        #camera-container, #viewer-area { width: 100%; height: 60%; background: #000; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        video, .viewer-layer { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
         
-        #viewer-area { width: 100%; height: 65%; position: relative; background: #000; display: flex; align-items: center; justify-content: center; touch-action: none; overflow: hidden; }
-        #viewer-img { max-width: 100%; max-height: 100%; pointer-events: none; }
-        
-        /* トラッキング用ターゲット */
-        #track-target { position: absolute; width: 40px; height: 40px; border: 2px solid var(--accent-color); border-radius: 50%; display: none; pointer-events: none; z-index: 100; }
-        #track-target::after, #track-target::before { content: ''; position: absolute; background: var(--accent-color); }
-        #track-target::after { width: 100%; height: 1px; top: 50%; left: 0; }
-        #track-target::before { width: 1px; height: 100%; left: 50%; top: 0; }
+        /* ガイドライン (カメラ・ビューワー共通) */
+        .guide { position: absolute; background: rgba(255,255,255,0.3); pointer-events: none; z-index: 100; }
+        .v-line-1 { width: 1px; height: 100%; left: 33.3%; } .v-line-2 { width: 1px; height: 100%; left: 66.6%; }
+        .h-line-1 { width: 100%; height: 1px; top: 33.3%; left: 0; } .h-line-2 { width: 100%; height: 1px; top: 66.6%; left: 0; }
 
-        .controls { width: 100%; height: 35%; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; background: #000; padding-top: 15px; z-index: 10; }
-        #shutter { width: 75px; height: 75px; border-radius: 50%; background: #fff; border: 6px solid #333; margin-bottom: 15px; }
+        /* ビューワーレイヤー */
+        #onion-layer { opacity: 0.5; z-index: 5; pointer-events: none; }
+        #current-layer { z-index: 10; touch-action: none; }
+
+        .controls { width: 100%; height: 40%; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; background: #000; padding-top: 10px; z-index: 20; }
+        #shutter { width: 70px; height: 70px; border-radius: 50%; background: #fff; border: 5px solid #333; margin-bottom: 10px; }
+        
+        .adjust-row { display: flex; width: 90%; justify-content: center; gap: 15px; margin-bottom: 10px; }
+        .mini-btn { background: #333; color: #fff; border: 1px solid #444; padding: 10px 20px; border-radius: 10px; font-size: 0.8rem; }
+
         .nav-row { display: flex; width: 92%; justify-content: space-around; margin-top: auto; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
-        .nav-row .btn { width: 45%; margin: 0; padding: 14px; font-size: 0.9rem; }
+        .nav-row .btn { width: 45%; margin: 0; padding: 12px; font-size: 0.85rem; }
 
         #lib-list { width: 92%; height: 50%; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
         .lib-item { background: var(--card-bg); padding: 10px; border-radius: 16px; display: flex; align-items: center; border: 1px solid #333; }
         .thumb { width: 60px; height: 60px; border-radius: 10px; object-fit: cover; }
-        
-        #loading { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; color: white; flex-direction: column; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
-
-    <div id="loading"><div style="margin-bottom:15px; font-weight:bold;">Tracking Point...</div><div id="load-progress">0%</div></div>
 
     <div id="home" class="screen active">
         <h1>TOUCH</h1>
@@ -49,9 +49,13 @@
     </div>
 
     <div id="camera" class="screen">
-        <div id="camera-container"><video id="video" autoplay playsinline muted></video></div>
+        <div id="camera-container">
+            <video id="video" autoplay playsinline muted></video>
+            <div class="guide v-line-1"></div><div class="guide v-line-2"></div>
+            <div class="guide h-line-1"></div><div class="guide h-line-2"></div>
+        </div>
         <div class="controls">
-            <div id="counter" style="color:#666; font-size:0.75rem; margin-bottom:10px;">0 FRAMES</div>
+            <div id="counter" style="color:#666; font-size:0.7rem; margin-bottom:10px;">0 FRAMES</div>
             <div id="shutter" onclick="captureFrame()"></div>
             <div class="nav-row">
                 <button class="btn" onclick="nav('home')">CANCEL</button>
@@ -63,14 +67,17 @@
 
     <div id="viewer" class="screen">
         <div id="viewer-area">
-            <img id="viewer-img">
-            <div id="track-target"></div>
+            <img id="onion-layer" class="viewer-layer">
+            <img id="current-layer" class="viewer-layer">
+            <div class="guide v-line-1"></div><div class="guide v-line-2"></div>
+            <div class="guide h-line-1"></div><div class="guide h-line-2"></div>
         </div>
         <div class="controls">
-            <p id="viewer-hint" style="color:#aaa; font-size:0.7rem; margin:0 0 10px 0;">背景の動かない箇所をタップして固定</p>
-            <div style="display:flex; gap:10px; margin-bottom:15px;">
-                <button id="undo-btn" class="btn" onclick="resetAlign()" style="width:100px; padding:10px; font-size:0.8rem; background:#444; display:none;">↺ RESET</button>
-                <button class="btn" onclick="runAutoSpin()" style="width:100px; padding:10px; font-size:0.8rem; background:#222;">▶ PLAY</button>
+            <div id="viewer-hint" style="color:#ff3b30; font-size:0.7rem; margin-bottom:8px; font-weight:bold;">停止中：ドラッグで位置調整</div>
+            <div class="adjust-row">
+                <button class="mini-btn" onclick="stepFrame(-1)">◀ 前へ</button>
+                <button id="play-btn" class="mini-btn" style="background:var(--accent-color); border:none;" onclick="togglePlay()">PLAY</button>
+                <button class="mini-btn" onclick="stepFrame(1)">次へ ▶</button>
             </div>
             <div class="nav-row" id="preview-controls">
                 <button class="btn" onclick="nav('camera')">RETAKE</button>
@@ -91,9 +98,7 @@
 
     <script>
         let capturedImages = [], offsets = [], currentMode = 'obj';
-        let isDragging = false, lastX = 0, velocity = 0, currentPos = 0, isAutoSpinning = false;
-        let startAngle = null, currentAngle = 0, maxDiffAngle = 0;
-        const friction = 0.92, dragDamping = 0.4;
+        let isDragging = false, lastX = 0, lastY = 0, currentPos = 0, isAutoSpinning = false;
         let db;
 
         const request = indexedDB.open("TouchAppDB", 1);
@@ -104,17 +109,6 @@
             if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
                 try { await DeviceOrientationEvent.requestPermission(); } catch (e) {}
             }
-            window.addEventListener('deviceorientation', e => {
-                if (e.alpha !== null) {
-                    currentAngle = e.alpha;
-                    if (capturedImages.length > 0) {
-                        if (startAngle === null) startAngle = currentAngle;
-                        let diff = Math.abs(currentAngle - startAngle);
-                        if (diff > 180) diff = 360 - diff;
-                        if (diff > maxDiffAngle) maxDiffAngle = diff;
-                    }
-                }
-            });
             nav('camera');
         }
 
@@ -127,10 +121,9 @@
 
         async function initCamera() {
             capturedImages = []; offsets = [];
-            const video = document.getElementById('video');
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 1280, height: 1280 } });
-                video.srcObject = stream;
+                document.getElementById('video').srcObject = stream;
             } catch (e) { alert("Camera Error"); }
         }
 
@@ -144,7 +137,7 @@
             const canvas = document.getElementById('buffer');
             canvas.width = video.videoWidth; canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0);
-            capturedImages.push(canvas.toDataURL('image/jpeg', 0.5));
+            capturedImages.push(canvas.toDataURL('image/jpeg', 0.6));
             offsets.push({x: 0, y: 0});
             document.getElementById('counter').innerText = `${capturedImages.length} FRAMES`;
         }
@@ -152,131 +145,83 @@
         function startViewer(isPreview) {
             if(capturedImages.length < 2) return;
             if(offsets.length === 0) offsets = capturedImages.map(() => ({x:0, y:0}));
-            currentMode = maxDiffAngle > 100 ? '360' : 'obj';
+            currentPos = 0;
+            isAutoSpinning = false;
             updateImage();
             document.getElementById('preview-controls').style.display = isPreview ? 'flex' : 'none';
             document.getElementById('library-controls').style.display = isPreview ? 'none' : 'flex';
-            document.getElementById('track-target').style.display = isPreview ? 'none' : 'none';
             nav('viewer');
-            if(isPreview) runAutoSpin(); else renderViewer();
         }
-
-        // --- ポイントトラッキング (テンプレートマッチング) ---
-        const vArea = document.getElementById('viewer-area');
-        vArea.onclick = async (e) => {
-            if (isAutoSpinning || document.getElementById('library-controls').style.display === 'flex') return;
-            
-            const rect = vArea.getBoundingClientRect();
-            const tapX = e.clientX - rect.left;
-            const tapY = e.clientY - rect.top;
-            
-            // ターゲット表示
-            const target = document.getElementById('track-target');
-            target.style.left = `${tapX - 20}px`;
-            target.style.top = `${tapY - 20}px`;
-            target.style.display = 'block';
-
-            if(confirm("この地点を基準に全フレームを固定しますか？")) {
-                await runPointTracking(tapX / rect.width, tapY / rect.height);
-            } else {
-                target.style.display = 'none';
-            }
-        };
-
-        async function runPointTracking(normX, normY) {
-            const loading = document.getElementById('loading');
-            loading.style.display = 'flex';
-            const canvas = document.getElementById('buffer');
-            const ctx = canvas.getContext('2d', { willReadFrequently: true });
-            
-            // 1. テンプレート(32x32)を1枚目から抽出
-            const img0 = await loadImage(capturedImages[0]);
-            const fullW = img0.width, fullH = img0.height;
-            const tx = normX * fullW, ty = normY * fullH;
-            const tSize = 32; // テンプレートサイズ
-            const sSize = 120; // 探索範囲
-
-            canvas.width = tSize; canvas.height = tSize;
-            ctx.drawImage(img0, tx - tSize/2, ty - tSize/2, tSize, tSize, 0, 0, tSize, tSize);
-            const template = ctx.getImageData(0, 0, tSize, tSize).data;
-
-            // 2. 各フレームで探索
-            for (let i = 0; i < capturedImages.length; i++) {
-                document.getElementById('load-progress').innerText = `${Math.round((i/capturedImages.length)*100)}%`;
-                const img = await loadImage(capturedImages[i]);
-                canvas.width = sSize; canvas.height = sSize;
-                ctx.drawImage(img, tx - sSize/2, ty - sSize/2, sSize, sSize, 0, 0, sSize, sSize);
-                const searchArea = ctx.getImageData(0, 0, sSize, sSize).data;
-
-                let bestX = 0, bestY = 0, minDiff = Infinity;
-                // 探索範囲内をスキャン
-                for (let sy = 0; sy < sSize - tSize; sy += 2) {
-                    for (let sx = 0; sx < sSize - tSize; sx += 2) {
-                        let diff = 0;
-                        // テンプレートとの差分(SSD)を計算
-                        for (let py = 0; py < tSize; py += 4) {
-                            for (let px = 0; px < tSize; px += 4) {
-                                const sIdx = ((sy + py) * sSize + (sx + px)) * 4;
-                                const tIdx = (py * tSize + px) * 4;
-                                diff += Math.abs(searchArea[sIdx] - template[tIdx]);
-                            }
-                        }
-                        if (diff < minDiff) { minDiff = diff; bestX = sx; bestY = sy; }
-                    }
-                }
-                
-                // 座標のズレを計算してオフセット保存
-                let offX = (sSize/2 - tSize/2) - bestX;
-                let offY = (sSize/2 - tSize/2) - bestY;
-                
-                // ループ吸着処理
-                if (i > capturedImages.length * 0.85) {
-                    const ratio = (i - capturedImages.length * 0.85) / (capturedImages.length * 0.15);
-                    offX *= (1 - ratio); offY *= (1 - ratio);
-                }
-                offsets[i] = {x: offX, y: offY};
-                if(i % 5 === 0) await new Promise(r => setTimeout(r, 1));
-            }
-
-            loading.style.display = 'none';
-            document.getElementById('undo-btn').style.display = 'block';
-            updateImage();
-        }
-
-        function resetAlign() {
-            offsets = capturedImages.map(() => ({x: 0, y: 0}));
-            document.getElementById('undo-btn').style.display = 'none';
-            document.getElementById('track-target').style.display = 'none';
-            updateImage();
-        }
-
-        function loadImage(src) { return new Promise(resolve => { const img = new Image(); img.onload = () => resolve(img); img.src = src; }); }
 
         function updateImage() {
             const total = capturedImages.length;
-            if(total > 0) {
-                const idx = (Math.floor(currentPos) % total + total) % total;
-                const imgEl = document.getElementById('viewer-img');
-                imgEl.src = capturedImages[idx];
-                const off = offsets[idx] || {x:0, y:0};
-                imgEl.style.transform = `translate(${off.x}px, ${off.y}px)`;
+            const idx = (Math.floor(currentPos) % total + total) % total;
+            const prevIdx = (idx - 1 + total) % total;
+
+            const currentLayer = document.getElementById('current-layer');
+            const onionLayer = document.getElementById('onion-layer');
+
+            // 現在の画像
+            currentLayer.src = capturedImages[idx];
+            currentLayer.style.transform = `translate(${offsets[idx].x}px, ${offsets[idx].y}px)`;
+
+            // 1つ前の画像（オニオンスキン）
+            if (!isAutoSpinning && capturedImages.length > 1) {
+                onionLayer.src = capturedImages[prevIdx];
+                onionLayer.style.transform = `translate(${offsets[prevIdx].x}px, ${offsets[prevIdx].y}px)`;
+                onionLayer.style.display = 'block';
+                document.getElementById('viewer-hint').style.visibility = 'visible';
+            } else {
+                onionLayer.style.display = 'none';
+                document.getElementById('viewer-hint').style.visibility = 'hidden';
             }
         }
 
-        function runAutoSpin() {
-            if(isAutoSpinning) return;
-            isAutoSpinning = true;
-            let start = null, duration = 2000;
-            function animate(time) {
-                if(!start) start = time;
-                let progress = (time - start) / duration;
-                if (progress < 1 && isAutoSpinning) {
-                    currentPos = progress * (capturedImages.length * 2);
-                    updateImage(); requestAnimationFrame(animate);
-                } else { isAutoSpinning = false; renderViewer(); }
-            }
-            requestAnimationFrame(animate);
+        function togglePlay() {
+            isAutoSpinning = !isAutoSpinning;
+            document.getElementById('play-btn').innerText = isAutoSpinning ? "STOP" : "PLAY";
+            if (isAutoSpinning) requestAnimationFrame(autoSpin);
+            else updateImage();
         }
+
+        function autoSpin() {
+            if (!isAutoSpinning) return;
+            currentPos += 0.15; // 再生速度
+            updateImage();
+            requestAnimationFrame(autoSpin);
+        }
+
+        function stepFrame(dir) {
+            isAutoSpinning = false;
+            document.getElementById('play-btn').innerText = "PLAY";
+            currentPos = Math.round(currentPos) + dir;
+            updateImage();
+        }
+
+        // --- ドラッグによる位置調整 ---
+        const vLayer = document.getElementById('current-layer');
+        vLayer.addEventListener('pointerdown', e => {
+            if(isAutoSpinning) return;
+            isDragging = true;
+            lastX = e.clientX;
+            lastY = e.clientY;
+            vLayer.setPointerCapture(e.pointerId);
+        });
+
+        vLayer.addEventListener('pointermove', e => {
+            if(!isDragging || isAutoSpinning) return;
+            const idx = (Math.floor(currentPos) % capturedImages.length + capturedImages.length) % capturedImages.length;
+            
+            // ドラッグした分だけオフセットを更新
+            offsets[idx].x += (e.clientX - lastX);
+            offsets[idx].y += (e.clientY - lastY);
+            
+            lastX = e.clientX;
+            lastY = e.clientY;
+            updateImage();
+        });
+
+        vLayer.addEventListener('pointerup', () => isDragging = false);
 
         function saveToLibrary() {
             const now = new Date();
@@ -285,7 +230,7 @@
             const transaction = db.transaction(["photos"], "readwrite");
             transaction.objectStore("photos").add({ 
                 title, data: capturedImages, offsets: offsets, thumb: capturedImages[0], 
-                timestamp: now.getTime(), dateLabel: now.toLocaleString(), mode: currentMode, count: capturedImages.length
+                timestamp: now.getTime(), dateLabel: now.toLocaleString(), count: capturedImages.length
             });
             transaction.oncomplete = () => { alert("保存しました"); nav('home'); };
         }
@@ -298,7 +243,7 @@
                 if(cursor) {
                     const item = cursor.value;
                     const div = document.createElement('div'); div.className = 'lib-item';
-                    div.innerHTML = `<img src="${item.thumb}" class="thumb"><div style="flex:1;margin-left:10px;"><b style="font-size:0.9rem;">${item.title}</b><br><small style="color:#666;">${item.count} frames</small></div><div class="icon-btn" onclick="viewItem(${item.id})">▶</div><div class="icon-btn" onclick="deleteItem(${item.id})">🗑</div>`;
+                    div.innerHTML = `<img src="${item.thumb}" class="thumb"><div style="flex:1;margin-left:10px;"><b style="font-size:0.9rem;">${item.title}</b><br><small style="color:#666;">${item.count} frames</small></div><div class="icon-btn" onclick="viewItem(${item.id})" style="padding:10px; background:#333; border-radius:10px;">▶</div>`;
                     list.appendChild(div);
                     cursor.continue();
                 }
@@ -311,33 +256,9 @@
             transaction.objectStore("photos").get(id).onsuccess = e => {
                 capturedImages = e.target.result.data;
                 offsets = e.target.result.offsets || capturedImages.map(() => ({x:0, y:0}));
-                currentMode = e.target.result.mode || 'obj';
                 startViewer(false);
             };
         };
-
-        window.deleteItem = (id) => {
-            if(confirm("削除しますか？")) {
-                const transaction = db.transaction(["photos"], "readwrite");
-                transaction.objectStore("photos").delete(id).onsuccess = () => openLibrary();
-            }
-        };
-
-        vArea.addEventListener('pointerdown', e => { if(isAutoSpinning) return; isDragging = true; lastX = e.clientX; velocity = 0; vArea.setPointerCapture(e.pointerId); });
-        vArea.addEventListener('pointermove', e => {
-            if(!isDragging || isAutoSpinning) return;
-            velocity += ((e.clientX - lastX) / window.innerWidth) * (capturedImages.length * 1.5);
-            lastX = e.clientX;
-        });
-        vArea.addEventListener('pointerup', () => isDragging = false);
-
-        function renderViewer() {
-            if(!document.getElementById('viewer').classList.contains('active') || isAutoSpinning) return;
-            velocity *= (isDragging ? dragDamping : friction);
-            if(Math.abs(velocity) < 0.01) velocity = 0;
-            currentPos += velocity; updateImage();
-            requestAnimationFrame(renderViewer);
-        }
     </script>
 </body>
 </html>
