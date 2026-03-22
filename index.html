@@ -35,15 +35,21 @@
         .nav-row { display: flex; width: 92%; justify-content: space-around; margin-top: auto; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
         .nav-row .btn { width: 45%; margin: 0; padding: 12px; font-size: 0.8rem; }
 
+        /* Library List Design */
         .lib-header { width: 92%; display: flex; justify-content: space-between; align-items: center; margin-top: 50px; }
         #lib-list { width: 92%; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 10px 0; }
         .lib-item { background: var(--card-bg); padding: 12px; border-radius: 18px; display: flex; align-items: center; border: 1px solid #2c2c2e; }
-        .thumb-wrap { position: relative; width: 60px; height: 60px; flex-shrink: 0; }
-        .thumb { width: 100%; height: 100%; border-radius: 12px; object-fit: cover; }
-        .badge { position: absolute; bottom: -4px; right: -4px; background: var(--accent-color); color: white; font-size: 0.6rem; font-weight: bold; padding: 2px 5px; border-radius: 8px; border: 2px solid var(--card-bg); }
-        .item-info { flex: 1; margin-left: 15px; overflow: hidden; }
-        .title-row { display: flex; align-items: center; gap: 6px; }
-        .item-title { font-weight: bold; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        .thumb-wrap { position: relative; width: 64px; height: 64px; flex-shrink: 0; }
+        .thumb { width: 100%; height: 100%; border-radius: 14px; object-fit: cover; }
+        
+        .badge { position: absolute; background: var(--accent-color); color: white; font-size: 0.6rem; font-weight: bold; padding: 2px 5px; border-radius: 8px; border: 2px solid var(--card-bg); }
+        .badge-br { bottom: -4px; right: -4px; } /* Bottom Right (Count) */
+        .badge-bl { bottom: -4px; left: -4px; background: #333; } /* Bottom Left (Mode Icon) */
+
+        .item-info { flex: 1; margin-left: 15px; overflow: hidden; display: flex; flex-direction: column; gap: 2px; }
+        .item-title { font-weight: bold; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #fff; }
+        .item-date { font-size: 0.7rem; color: #888; }
     </style>
 </head>
 <body>
@@ -116,7 +122,7 @@
     <script>
         let capturedImages = [], offsets = [], currentOpenId = null;
         let isDragging = false, isEditScreen = false, isAutoPlaying = false;
-        let hasUnsavedChanges = false; // 未保存フラグ
+        let hasUnsavedChanges = false;
         let lastX = 0, lastY = 0, velocity = 0, currentPos = 0;
         let db;
 
@@ -132,7 +138,6 @@
             isAutoPlaying = false; velocity = 0;
         }
 
-        // 保存せずに戻ろうとした時のチェック
         function confirmAndExit(target) {
             if (hasUnsavedChanges) {
                 if (!confirm("調整した位置データが保存されていません。破棄して戻りますか？")) return;
@@ -233,7 +238,7 @@
         const cLayer = document.getElementById('current-layer');
         vArea.addEventListener('pointerdown', e => { 
             isDragging = true; lastX = e.clientX; lastY = e.clientY; velocity = 0; 
-            if(isEditScreen) { cLayer.classList.add('dragging'); hasUnsavedChanges = true; } // ドラッグしたら未保存フラグを立てる
+            if(isEditScreen) { cLayer.classList.add('dragging'); hasUnsavedChanges = true; }
             vArea.setPointerCapture(e.pointerId); 
         });
         vArea.addEventListener('pointermove', e => {
@@ -278,7 +283,6 @@
             const list = document.getElementById('lib-list'); list.innerHTML = "";
             const transaction = db.transaction(["photos"], "readonly");
             
-            // ソートボタンの色の切り替え
             document.getElementById('sort-date').classList.toggle('btn-red', sortBy === 'date');
             document.getElementById('sort-name').classList.toggle('btn-red', sortBy === 'name');
 
@@ -290,11 +294,23 @@
                     if(sortBy === 'name') items.sort((a,b) => a.title.localeCompare(b.title));
                     else items.sort((a,b) => b.timestamp - a.timestamp);
                     items.forEach(item => {
+                        const dateStr = new Date(item.timestamp).toLocaleString();
+                        const icon = item.mode === '360' ? '🌐' : '📦';
                         const div = document.createElement('div'); div.className = 'lib-item';
                         div.innerHTML = `
-                            <div class="thumb-wrap"><img src="${item.thumb}" class="thumb"><div class="badge">${item.count}</div></div>
-                            <div class="item-info"><div class="title-row"><span>${item.mode==='360'?'🌐':'📦'}</span><span class="item-title">${item.title}</span></div></div>
-                            <div style="display:flex; gap:5px;"><button class="mini-btn" style="min-width:40px;" onclick="viewItem(${item.id})">▶</button><button class="mini-btn" style="min-width:40px; color:#666;" onclick="deleteItem(${item.id})">🗑</button></div>`;
+                            <div class="thumb-wrap">
+                                <img src="${item.thumb}" class="thumb">
+                                <div class="badge badge-bl">${icon}</div>
+                                <div class="badge badge-br">${item.count}</div>
+                            </div>
+                            <div class="item-info">
+                                <span class="item-title">${item.title}</span>
+                                <span class="item-date">${dateStr}</span>
+                            </div>
+                            <div style="display:flex; gap:5px;">
+                                <button class="mini-btn" style="min-width:40px;" onclick="viewItem(${item.id})">▶</button>
+                                <button class="mini-btn" style="min-width:40px; color:#666;" onclick="deleteItem(${item.id})">🗑</button>
+                            </div>`;
                         list.appendChild(div);
                     });
                 }
