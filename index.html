@@ -17,15 +17,21 @@
         #camera-container, #viewer-area { width: 100vw; height: 60vh; background: #000; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
         video, .viewer-layer { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
         
-        #onion-layer { opacity: 0.5; z-index: 5; display: none; pointer-events: none; }
+        /* オニオンスキン：前のコマを透かす設定 */
+        #onion-layer { opacity: 0.4; z-index: 5; display: none; pointer-events: none; mix-blend-mode: screen; }
         #current-layer { z-index: 10; touch-action: none; }
+
+        /* グリッド表示 (EDIT MODE時) */
+        .grid { position: absolute; background: rgba(255,255,255,0.2); pointer-events: none; z-index: 15; display: none; }
+        .v-1 { width: 1px; height: 100%; left: 33.3%; } .v-2 { width: 1px; height: 100%; left: 66.6%; }
+        .h-1 { width: 100%; height: 1px; top: 33.3%; } .h-2 { width: 100%; height: 1px; top: 66.6%; }
 
         .controls { width: 100%; flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; background: #000; padding-top: 10px; z-index: 20; }
         #shutter { width: 70px; height: 70px; border-radius: 50%; background: #fff; border: 5px solid #333; margin-bottom: 10px; }
         
-        .adjust-row { display: flex; width: 90%; justify-content: center; gap: 8px; margin-bottom: 10px; }
-        .mini-btn { background: #333; color: #fff; border: 1px solid #444; padding: 10px 12px; border-radius: 10px; font-size: 0.7rem; min-width: 60px; }
-        .active-mode { background: var(--accent-color) !important; border: none; font-weight: bold; }
+        .btn-row { display: flex; width: 90%; justify-content: center; gap: 8px; margin-bottom: 8px; }
+        .mini-btn { background: #333; color: #fff; border: 1px solid #444; padding: 12px; border-radius: 12px; font-size: 0.75rem; flex: 1; max-width: 150px; text-align: center; cursor: pointer; }
+        .btn-red { background: var(--accent-color); border: none; font-weight: bold; }
 
         .nav-row { display: flex; width: 92%; justify-content: space-around; margin-top: auto; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
         .nav-row .btn { width: 45%; margin: 0; padding: 12px; font-size: 0.8rem; }
@@ -34,23 +40,19 @@
         .lib-header { width: 92%; display: flex; justify-content: space-between; align-items: center; margin-top: 50px; }
         #lib-list { width: 92%; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 10px 0; }
         .lib-item { background: var(--card-bg); padding: 12px; border-radius: 18px; display: flex; align-items: center; border: 1px solid #2c2c2e; }
-        
         .thumb-wrap { position: relative; width: 60px; height: 60px; flex-shrink: 0; }
-        .thumb { width: 100%; height: 100%; border-radius: 12px; object-fit: cover; background: #333; }
+        .thumb { width: 100%; height: 100%; border-radius: 12px; object-fit: cover; }
         .badge { position: absolute; bottom: -4px; right: -4px; background: var(--accent-color); color: white; font-size: 0.6rem; font-weight: bold; padding: 2px 5px; border-radius: 8px; border: 2px solid var(--card-bg); }
-
         .item-info { flex: 1; margin-left: 15px; overflow: hidden; }
         .title-row { display: flex; align-items: center; gap: 6px; }
         .item-title { font-weight: bold; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .item-date { color: #666; font-size: 0.75rem; margin-top: 3px; }
-        .mode-icon { font-size: 0.8rem; opacity: 0.8; }
     </style>
 </head>
 <body>
 
     <div id="home" class="screen active">
         <h1>TOUCH</h1>
-        <button class="btn btn-accent" onclick="requestSensorAndNav()">CAPTURE</button>
+        <button class="btn btn-accent" onclick="nav('camera')">CAPTURE</button>
         <button class="btn" onclick="openLibrary()">LIBRARY</button>
     </div>
 
@@ -71,20 +73,34 @@
         <div id="viewer-area">
             <img id="onion-layer" class="viewer-layer">
             <img id="current-layer" class="viewer-layer">
+            <div class="grid v-1"></div><div class="grid v-2"></div>
+            <div class="grid h-1"></div><div class="grid h-2"></div>
         </div>
+
         <div class="controls">
-            <div id="edit-hint" style="color:var(--accent-color); font-size:0.7rem; margin-bottom:8px; display:none; font-weight:bold;">EDIT: ドラッグで重ね合わせ</div>
-            <div class="adjust-row">
-                <button class="mini-btn" onclick="stepFrame(-1)">◀</button>
-                <button id="play-btn" class="mini-btn" onclick="togglePlay()">PLAY</button>
-                <button id="edit-btn" class="mini-btn" onclick="toggleEditMode()">EDIT</button>
-                <button class="mini-btn" onclick="stepFrame(1)">▶</button>
+            <div id="preview-ui" style="width:100%; display:flex; flex-direction:column; align-items:center;">
+                <div class="btn-row"><div class="mini-btn btn-red" onclick="runAutoPlay()" style="max-width:280px;">AUTO PLAY</div></div>
+                <div class="btn-row"><div class="mini-btn" onclick="setMode('edit')" style="max-width:280px;">EDIT MODE</div></div>
             </div>
-            <div class="nav-row" id="preview-controls">
+
+            <div id="edit-ui" style="width:100%; display:none; flex-direction:column; align-items:center;">
+                <div class="btn-row">
+                    <div class="mini-btn" onclick="stepFrame(-1)">◀</div>
+                    <div class="mini-btn" onclick="stepFrame(1)">▶</div>
+                </div>
+                <div class="btn-row">
+                    <div class="mini-btn btn-red" onclick="runAutoPlay()">TEST PLAY</div>
+                    <div class="mini-btn" onclick="resetOffset()">RESET</div>
+                    <div class="mini-btn" onclick="resetAllOffsets()">ALL RESET</div>
+                </div>
+                <div class="btn-row"><div class="mini-btn" onclick="setMode('preview')" style="max-width:280px;">PREVIEW MODE</div></div>
+            </div>
+
+            <div class="nav-row" id="save-controls">
                 <button class="btn" onclick="nav('camera')">RETAKE</button>
                 <button class="btn btn-accent" onclick="saveToLibrary()">SAVE</button>
             </div>
-            <div class="nav-row" id="library-controls" style="display:none;">
+            <div class="nav-row" id="lib-nav-controls" style="display:none;">
                 <button class="btn" onclick="nav('home')">HOME</button>
                 <button class="btn btn-accent" onclick="openLibrary()">BACK</button>
             </div>
@@ -105,7 +121,7 @@
 
     <script>
         let capturedImages = [], offsets = [], currentMode = 'obj';
-        let isDragging = false, isEditMode = false, isAutoSpinning = false;
+        let isDragging = false, isEditScreen = false, isAutoPlaying = false;
         let lastX = 0, lastY = 0, velocity = 0, currentPos = 0;
         let db;
 
@@ -117,7 +133,7 @@
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
             if(id === 'camera') initCamera(); else stopCamera();
-            isAutoSpinning = false; isEditMode = false; velocity = 0;
+            isAutoPlaying = false; velocity = 0;
         }
 
         async function initCamera() {
@@ -125,7 +141,7 @@
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 1280, height: 1280 } });
                 document.getElementById('video').srcObject = stream;
-            } catch (e) { alert("Camera Error"); }
+            } catch (e) { alert("Camera error"); }
         }
 
         function stopCamera() {
@@ -146,24 +162,21 @@
         function startViewer(isPreview) {
             if(capturedImages.length < 2) return;
             if(offsets.length === 0) offsets = capturedImages.map(() => ({x:0, y:0}));
-            currentPos = 0; isEditMode = false;
-            // 簡易判定：枚数が多ければ360モード
-            currentMode = capturedImages.length > 40 ? '360' : 'obj';
-            updateImage();
-            document.getElementById('preview-controls').style.display = isPreview ? 'flex' : 'none';
-            document.getElementById('library-controls').style.display = isPreview ? 'none' : 'flex';
-            document.getElementById('edit-btn').classList.remove('active-mode');
+            currentPos = 0;
+            setMode('preview');
+            document.getElementById('save-controls').style.display = isPreview ? 'flex' : 'none';
+            document.getElementById('lib-nav-controls').style.display = isPreview ? 'none' : 'flex';
             nav('viewer');
             renderLoop();
         }
 
-        function toggleEditMode() {
-            isEditMode = !isEditMode;
-            isAutoSpinning = false;
-            document.getElementById('play-btn').innerText = "PLAY";
-            document.getElementById('edit-btn').classList.toggle('active-mode', isEditMode);
-            document.getElementById('edit-hint').style.display = isEditMode ? 'block' : 'none';
-            document.getElementById('onion-layer').style.display = isEditMode ? 'block' : 'none';
+        function setMode(mode) {
+            isEditScreen = (mode === 'edit');
+            isAutoPlaying = false;
+            document.getElementById('preview-ui').style.display = isEditScreen ? 'none' : 'flex';
+            document.getElementById('edit-ui').style.display = isEditScreen ? 'flex' : 'none';
+            document.getElementById('onion-layer').style.display = isEditScreen ? 'block' : 'none';
+            document.querySelectorAll('.grid').forEach(g => g.style.display = isEditScreen ? 'block' : 'none');
             updateImage();
         }
 
@@ -173,44 +186,66 @@
             const idx = (Math.floor(currentPos) % total + total) % total;
             const prevIdx = (idx - 1 + total) % total;
 
-            const currentLayer = document.getElementById('current-layer');
-            const onionLayer = document.getElementById('onion-layer');
+            document.getElementById('current-layer').src = capturedImages[idx];
+            document.getElementById('current-layer').style.transform = `translate(${offsets[idx].x}px, ${offsets[idx].y}px)`;
 
-            currentLayer.src = capturedImages[idx];
-            currentLayer.style.transform = `translate(${offsets[idx].x}px, ${offsets[idx].y}px)`;
-
-            if (isEditMode) {
-                onionLayer.src = capturedImages[prevIdx];
-                onionLayer.style.transform = `translate(${offsets[prevIdx].x}px, ${offsets[prevIdx].y}px)`;
+            if (isEditScreen) {
+                document.getElementById('onion-layer').src = capturedImages[prevIdx];
+                document.getElementById('onion-layer').style.transform = `translate(${offsets[prevIdx].x}px, ${offsets[prevIdx].y}px)`;
             }
         }
 
-        function togglePlay() {
-            isAutoSpinning = !isAutoSpinning;
-            if(isAutoSpinning) { 
-                isEditMode = false; 
-                document.getElementById('edit-btn').classList.remove('active-mode'); 
-                document.getElementById('onion-layer').style.display = 'none'; 
-                document.getElementById('edit-hint').style.display = 'none'; 
+        function runAutoPlay() {
+            if(isAutoPlaying) return;
+            isAutoPlaying = true;
+            let start = null;
+            const duration = 2000; // 2秒
+            const totalFrames = capturedImages.length * 2; // 2回転
+            const startPos = currentPos;
+
+            function animate(time) {
+                if(!start) start = time;
+                let progress = (time - start) / duration;
+                if (progress < 1 && isAutoPlaying) {
+                    currentPos = startPos + (progress * totalFrames);
+                    updateImage();
+                    requestAnimationFrame(animate);
+                } else {
+                    isAutoPlaying = false;
+                    currentPos = Math.round(currentPos);
+                    updateImage();
+                }
             }
-            document.getElementById('play-btn').innerText = isAutoSpinning ? "STOP" : "PLAY";
+            requestAnimationFrame(animate);
         }
 
         function stepFrame(dir) {
-            isAutoSpinning = false;
-            document.getElementById('play-btn').innerText = "PLAY";
+            isAutoPlaying = false;
             currentPos = Math.round(currentPos) + dir;
             updateImage();
+        }
+
+        function resetOffset() {
+            const idx = (Math.floor(currentPos) % capturedImages.length + capturedImages.length) % capturedImages.length;
+            offsets[idx] = {x:0, y:0};
+            updateImage();
+        }
+
+        function resetAllOffsets() {
+            if(confirm("全ての調整をリセットしますか？")) {
+                offsets = capturedImages.map(() => ({x:0, y:0}));
+                updateImage();
+            }
         }
 
         const vArea = document.getElementById('viewer-area');
         vArea.addEventListener('pointerdown', e => { isDragging = true; lastX = e.clientX; lastY = e.clientY; velocity = 0; vArea.setPointerCapture(e.pointerId); });
         
         vArea.addEventListener('pointermove', e => {
-            if(!isDragging) return;
+            if(!isDragging || isAutoPlaying) return;
             const idx = (Math.floor(currentPos) % capturedImages.length + capturedImages.length) % capturedImages.length;
             
-            if (isEditMode) {
+            if (isEditScreen) {
                 offsets[idx].x += (e.clientX - lastX);
                 offsets[idx].y += (e.clientY - lastY);
                 updateImage();
@@ -225,23 +260,17 @@
 
         function renderLoop() {
             if(!document.getElementById('viewer').classList.contains('active')) return;
-            if(isAutoSpinning) { currentPos += 0.12; updateImage(); }
-            else if(!isDragging && Math.abs(velocity) > 0.01) {
+            if(!isAutoPlaying && !isDragging && Math.abs(velocity) > 0.01) {
                 velocity *= 0.95; currentPos += velocity; updateImage();
             }
             requestAnimationFrame(renderLoop);
         }
 
-        async function requestSensorAndNav() { nav('camera'); }
-
         function saveToLibrary() {
             const title = prompt("作品名", new Date().toLocaleString());
             if(!title) return;
             const transaction = db.transaction(["photos"], "readwrite");
-            transaction.objectStore("photos").add({ 
-                title, data: capturedImages, offsets, thumb: capturedImages[0], 
-                timestamp: Date.now(), count: capturedImages.length, mode: currentMode 
-            });
+            transaction.objectStore("photos").add({ title, data: capturedImages, offsets, thumb: capturedImages[0], timestamp: Date.now(), count: capturedImages.length, mode: capturedImages.length > 40 ? '360' : 'obj' });
             transaction.oncomplete = () => { alert("Saved!"); nav('home'); };
         }
 
@@ -255,26 +284,12 @@
                 else {
                     if(sortBy === 'name') items.sort((a,b) => a.title.localeCompare(b.title));
                     else items.sort((a,b) => b.timestamp - a.timestamp);
-                    
                     items.forEach(item => {
                         const div = document.createElement('div'); div.className = 'lib-item';
-                        const icon = item.mode === '360' ? '🌐' : '📦';
                         div.innerHTML = `
-                            <div class="thumb-wrap">
-                                <img src="${item.thumb}" class="thumb">
-                                <div class="badge">${item.count}</div>
-                            </div>
-                            <div class="item-info">
-                                <div class="title-row">
-                                    <span class="mode-icon">${icon}</span>
-                                    <span class="item-title">${item.title}</span>
-                                </div>
-                                <div class="item-date">${new Date(item.timestamp).toLocaleDateString()}</div>
-                            </div>
-                            <div style="display:flex; gap:8px;">
-                                <button class="mini-btn" style="min-width:40px; background:#444;" onclick="viewItem(${item.id})">▶</button>
-                                <button class="mini-btn" style="min-width:40px; color:#666; background:#222;" onclick="deleteItem(${item.id})">🗑</button>
-                            </div>`;
+                            <div class="thumb-wrap"><img src="${item.thumb}" class="thumb"><div class="badge">${item.count}</div></div>
+                            <div class="item-info"><div class="title-row"><span>${item.mode==='360'?'🌐':'📦'}</span><span class="item-title">${item.title}</span></div></div>
+                            <div style="display:flex; gap:5px;"><button class="mini-btn" style="min-width:40px;" onclick="viewItem(${item.id})">▶</button><button class="mini-btn" style="min-width:40px; color:#666;" onclick="deleteItem(${item.id})">🗑</button></div>`;
                         list.appendChild(div);
                     });
                 }
@@ -286,9 +301,7 @@
             const transaction = db.transaction(["photos"], "readonly");
             transaction.objectStore("photos").get(id).onsuccess = e => {
                 const item = e.target.result;
-                capturedImages = item.data; 
-                offsets = item.offsets || item.data.map(()=>({x:0,y:0}));
-                currentMode = item.mode || 'obj';
+                capturedImages = item.data; offsets = item.offsets || item.data.map(()=>({x:0,y:0}));
                 startViewer(false);
             };
         };
