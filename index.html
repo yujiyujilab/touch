@@ -9,49 +9,28 @@
         body { margin: 0; padding: 0; background: var(--bg-color); color: var(--text-color); font-family: -apple-system, sans-serif; overflow: hidden; -webkit-user-select: none; user-select: none; }
         .screen { display: none; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; flex-direction: column; align-items: center; justify-content: center; }
         .screen.active { display: flex; }
-        
         h1 { font-size: 4.5rem; font-weight: 900; letter-spacing: 0.2em; margin: 0 0 2rem 0.2em; }
-        
-        /* UI Components */
         .btn { background: #2c2c2e; color: #fff; border: 1px solid #3a3a3c; padding: 18px; font-size: 1rem; border-radius: 14px; margin: 8px; cursor: pointer; width: 85%; max-width: 320px; text-align: center; -webkit-tap-highlight-color: transparent; }
         .btn-accent { background: var(--accent-color); border: none; font-weight: bold; }
-        .btn:active { opacity: 0.7; transform: scale(0.98); }
-
-        /* CAMERA & GUIDES */
         #camera-container { width: 100%; height: 70%; background: #000; position: relative; }
         video { width: 100%; height: 100%; object-fit: cover; }
         canvas { display: none; }
         .guide { position: absolute; background: rgba(255,255,255,0.3); pointer-events: none; }
         .v-line-1 { width: 1px; height: 100%; left: 33.3%; } .v-line-2 { width: 1px; height: 100%; left: 66.6%; }
         .h-line-1 { width: 100%; height: 1px; top: 33.3%; left: 0; } .h-line-2 { width: 100%; height: 1px; top: 66.6%; left: 0; }
-        
         .controls { width: 100%; height: 30%; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; background: #000; padding-top: 20px; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
         #shutter { width: 75px; height: 75px; border-radius: 50%; background: #fff; border: 5px solid #333; margin-bottom: 20px; }
         .nav-row { display: flex; width: 90%; justify-content: space-around; margin-top: auto; }
         .nav-row .btn { width: 44%; margin: 0; padding: 14px; font-size: 0.9rem; }
-
-        /* VIEWER */
         #viewer-area { width: 100%; height: 70%; position: relative; background: #000; display: flex; align-items: center; justify-content: center; touch-action: none; overflow: hidden; }
         #viewer-img { max-width: 100%; max-height: 100%; pointer-events: none; }
-        
-        /* LIBRARY DESIGN */
-        #library h2 { margin-top: 60px; letter-spacing: 0.1em; }
-        .sort-bar { display: flex; gap: 10px; margin-bottom: 10px; width: 90%; justify-content: center; }
-        .sort-btn { background: #333; color: #aaa; border: none; padding: 5px 12px; border-radius: 20px; font-size: 0.7rem; }
-        .sort-btn.active { background: #555; color: #fff; }
-
-        #lib-list { width: 92%; height: 60%; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+        #lib-list { width: 92%; height: 55%; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
         .lib-item { background: var(--card-bg); padding: 12px; border-radius: 16px; display: flex; align-items: center; border: 1px solid #333; }
         .thumb { width: 55px; height: 55px; border-radius: 8px; object-fit: cover; margin-right: 12px; background: #333; }
         .item-info { flex-grow: 1; min-width: 0; }
         .item-title { display: block; font-size: 0.9rem; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .item-date { display: block; font-size: 0.65rem; color: #666; margin-top: 2px; }
-        
-        /* Icon Buttons */
-        .icon-btn { width: 44px; height: 44px; border-radius: 12px; border: 1px solid #3a3a3c; display: flex; align-items: center; justify-content: center; margin-left: 8px; font-size: 1.2rem; cursor: pointer; background: #2c2c2e; }
-        .icon-btn:active { background: #444; }
-        .icon-view { color: #fff; }
-        .icon-delete { color: #666; font-size: 1rem; }
+        .icon-btn { width: 44px; height: 44px; border-radius: 12px; border: 1px solid #3a3a3c; display: flex; align-items: center; justify-content: center; margin-left: 8px; font-size: 1.2rem; cursor: pointer; background: #2c2c2e; color: #fff; }
     </style>
 </head>
 <body>
@@ -95,31 +74,30 @@
     </div>
 
     <div id="library" class="screen">
-        <h2>LIBRARY</h2>
-        <div class="sort-bar">
-            <button id="sort-date" class="sort-btn active" onclick="setSort('date')">DATE</button>
-            <button id="sort-name" class="sort-btn" onclick="setSort('name')">NAME</button>
+        <h2 style="margin-top:60px;">LIBRARY</h2>
+        <div style="display:flex; gap:10px; margin-bottom:15px;">
+            <button class="btn" style="width:80px; padding:8px; font-size:0.7rem;" onclick="openLibrary('date')">日付順</button>
+            <button class="btn" style="width:80px; padding:8px; font-size:0.7rem;" onclick="openLibrary('name')">名前順</button>
         </div>
         <div id="lib-list"></div>
-        <button class="btn" onclick="nav('home')" style="margin: 20px 0 40px 0;">HOME</button>
+        <button class="btn" onclick="nav('home')" style="margin-top:20px;">HOME</button>
     </div>
 
     <script>
         let capturedImages = [];
         let isDragging = false, lastX = 0, velocity = 0, currentPos = 0, isAutoSpinning = false;
-        let currentSort = 'date'; 
         const friction = 0.92, dragDamping = 0.4;
-
         let db;
+
+        // DB初期化
         const request = indexedDB.open("TouchAppDB", 1);
-        request.onupgradeneeded = e => { db = e.target.result; db.createObjectStore("photos", { keyPath: "id", autoIncrement: true }); };
-        request.onsuccess = e => db = e.target.result;
+        request.onupgradeneeded = e => { e.target.result.createObjectStore("photos", { keyPath: "id", autoIncrement: true }); };
+        request.onsuccess = e => { db = e.target.result; };
 
         function nav(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
             if(id === 'camera') initCamera(); else stopCamera();
-            if(id === 'home') capturedImages = [];
             isAutoSpinning = false;
         }
 
@@ -129,7 +107,7 @@
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 1280, height: 1280 } });
                 document.getElementById('video').srcObject = stream;
-            } catch (e) { alert("カメラ許可が必要です"); }
+            } catch (e) { alert("カメラを許可してください"); }
         }
 
         function stopCamera() {
@@ -165,9 +143,7 @@
                 if (progress < 1 && isAutoSpinning) {
                     currentPos = progress * (capturedImages.length * spins);
                     updateImage(); requestAnimationFrame(animate);
-                } else {
-                    isAutoSpinning = false; renderViewer();
-                }
+                } else { isAutoSpinning = false; renderViewer(); }
             }
             requestAnimationFrame(animate);
         }
@@ -185,47 +161,61 @@
             const dateStr = now.toLocaleString();
             const title = prompt("名前をつけて保存", dateStr);
             if(!title) return;
-            
             const transaction = db.transaction(["photos"], "readwrite");
-            transaction.objectStore("photos").add({ 
-                title: title, 
-                data: capturedImages, 
-                thumb: capturedImages[0],
-                timestamp: now.getTime(),
-                dateLabel: dateStr
-            });
-            transaction.oncomplete = () => { alert("保存成功"); nav('home'); };
+            transaction.objectStore("photos").add({ title, data: capturedImages, thumb: capturedImages[0], timestamp: now.getTime(), dateLabel: dateStr });
+            transaction.oncomplete = () => { alert("保存しました"); nav('home'); };
         }
 
-        function setSort(type) {
-            currentSort = type;
-            document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(`sort-${type}`).classList.add('active');
-            openLibrary();
-        }
-
-        async function openLibrary() {
+        function openLibrary(sortType = 'date') {
             const list = document.getElementById('lib-list'); list.innerHTML = "";
             const transaction = db.transaction(["photos"], "readonly");
             let items = [];
-            
             transaction.objectStore("photos").openCursor().onsuccess = e => {
                 const cursor = e.target.result;
-                if(cursor) {
-                    items.push(cursor.value);
-                    cursor.continue();
-                } else {
-                    // Sorting Logic
-                    if(currentSort === 'date') items.sort((a,b) => b.timestamp - a.timestamp);
+                if(cursor) { items.push(cursor.value); cursor.continue(); }
+                else {
+                    if(sortType === 'date') items.sort((a,b) => b.timestamp - a.timestamp);
                     else items.sort((a,b) => a.title.localeCompare(b.title));
-                    
                     items.forEach(item => {
                         const div = document.createElement('div'); div.className = 'lib-item';
-                        div.innerHTML = `
-                            <img src="${item.thumb || item.data[0]}" class="thumb">
-                            <div class="item-info">
-                                <span class="item-title">${item.title}</span>
-                                <span class="item-date">${item.dateLabel || ""}</span>
-                            </div>
-                            <div class="icon-btn icon-view" onclick="loadItem(${item.id})">▶</div>
-                            <div class="icon-btn icon-delete" onclick="deleteItem(${item.
+                        div.innerHTML = `<img src="${item.thumb || item.data[0]}" class="thumb"><div class="item-info"><span class="item-title">${item.title}</span><span class="item-date">${item.dateLabel || ""}</span></div><div class="icon-btn" onclick="viewItem(${item.id})">▶</div><div class="icon-btn" onclick="deleteItem(${item.id})">🗑</div>`;
+                        list.appendChild(div);
+                    });
+                }
+            };
+            nav('library');
+        }
+
+        window.viewItem = (id) => {
+            const transaction = db.transaction(["photos"], "readonly");
+            transaction.objectStore("photos").get(id).onsuccess = e => {
+                capturedImages = e.target.result.data;
+                startViewer(false);
+            };
+        };
+
+        window.deleteItem = (id) => {
+            if(!confirm("削除しますか？")) return;
+            const transaction = db.transaction(["photos"], "readwrite");
+            transaction.objectStore("photos").delete(id).onsuccess = () => openLibrary();
+        };
+
+        const vArea = document.getElementById('viewer-area');
+        vArea.addEventListener('pointerdown', e => { if(isAutoSpinning) return; isDragging = true; lastX = e.clientX; velocity = 0; vArea.setPointerCapture(e.pointerId); });
+        vArea.addEventListener('pointermove', e => {
+            if(!isDragging || isAutoSpinning) return;
+            velocity += ((e.clientX - lastX) / window.innerWidth) * (capturedImages.length * 2.0);
+            lastX = e.clientX;
+        });
+        vArea.addEventListener('pointerup', () => isDragging = false);
+
+        function renderViewer() {
+            if(!document.getElementById('viewer').classList.contains('active') || isAutoSpinning) return;
+            velocity *= (isDragging ? dragDamping : friction);
+            if(Math.abs(velocity) < 0.01) velocity = 0;
+            currentPos += velocity; updateImage();
+            requestAnimationFrame(renderViewer);
+        }
+    </script>
+</body>
+</html>
