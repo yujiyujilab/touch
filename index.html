@@ -7,9 +7,9 @@
     <style>
         :root { --bg-color: #000; --text-color: #fff; --accent-color: #ff3b30; --card-bg: #1c1c1e; }
         body { margin: 0; padding: 0; background: var(--bg-color); color: var(--text-color); font-family: -apple-system, sans-serif; overflow: hidden; -webkit-user-select: none; user-select: none; }
-        .screen { display: none; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; flex-direction: column; align-items: center; justify-content: center; }
+        .screen { display: none; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; flex-direction: column; align-items: center; }
         .screen.active { display: flex; }
-        h1 { font-size: 4.5rem; font-weight: 900; letter-spacing: 0.2em; margin: 0 0 2rem 0.2em; }
+        h1 { font-size: 4.5rem; font-weight: 900; letter-spacing: 0.2em; margin: 20vh 0 2rem 0.2em; }
         
         .btn { background: #2c2c2e; color: #fff; border: 1px solid #3a3a3c; padding: 18px; font-size: 1rem; border-radius: 14px; margin: 8px; cursor: pointer; width: 85%; max-width: 320px; text-align: center; border: none; }
         .btn-accent { background: var(--accent-color); font-weight: bold; }
@@ -17,27 +17,31 @@
         #camera-container, #viewer-area { width: 100%; height: 60%; background: #000; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
         video, .viewer-layer { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
         
-        /* ガイドライン (カメラ・ビューワー共通) */
         .guide { position: absolute; background: rgba(255,255,255,0.3); pointer-events: none; z-index: 100; }
         .v-line-1 { width: 1px; height: 100%; left: 33.3%; } .v-line-2 { width: 1px; height: 100%; left: 66.6%; }
         .h-line-1 { width: 100%; height: 1px; top: 33.3%; left: 0; } .h-line-2 { width: 100%; height: 1px; top: 66.6%; left: 0; }
 
-        /* ビューワーレイヤー */
-        #onion-layer { opacity: 0.5; z-index: 5; pointer-events: none; }
+        #onion-layer { opacity: 0.4; z-index: 5; pointer-events: none; }
         #current-layer { z-index: 10; touch-action: none; }
 
         .controls { width: 100%; height: 40%; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; background: #000; padding-top: 10px; z-index: 20; }
         #shutter { width: 70px; height: 70px; border-radius: 50%; background: #fff; border: 5px solid #333; margin-bottom: 10px; }
         
-        .adjust-row { display: flex; width: 90%; justify-content: center; gap: 15px; margin-bottom: 10px; }
-        .mini-btn { background: #333; color: #fff; border: 1px solid #444; padding: 10px 20px; border-radius: 10px; font-size: 0.8rem; }
+        .adjust-row { display: flex; width: 90%; justify-content: center; gap: 10px; margin-bottom: 10px; }
+        .mini-btn { background: #333; color: #fff; border: 1px solid #444; padding: 10px 15px; border-radius: 10px; font-size: 0.75rem; min-width: 70px; }
 
-        .nav-row { display: flex; width: 92%; justify-content: space-around; margin-top: auto; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+        .nav-row { display: flex; width: 92%; justify-content: space-around; margin-top: auto; padding-bottom: calc(25px + env(safe-area-inset-bottom)); }
         .nav-row .btn { width: 45%; margin: 0; padding: 12px; font-size: 0.85rem; }
 
-        #lib-list { width: 92%; height: 50%; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-        .lib-item { background: var(--card-bg); padding: 10px; border-radius: 16px; display: flex; align-items: center; border: 1px solid #333; }
-        .thumb { width: 60px; height: 60px; border-radius: 10px; object-fit: cover; }
+        /* Library Styles */
+        #lib-list { width: 92%; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 10px 0; margin-top: 10px; }
+        .lib-item { background: var(--card-bg); padding: 12px; border-radius: 18px; display: flex; align-items: center; border: 1px solid #2c2c2e; }
+        .thumb { width: 64px; height: 64px; border-radius: 12px; object-fit: cover; background: #333; }
+        .item-info { flex: 1; margin-left: 12px; overflow: hidden; }
+        .item-title { font-weight: bold; font-size: 0.95rem; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .item-meta { color: #666; font-size: 0.75rem; margin-top: 4px; }
+        .lib-actions { display: flex; gap: 8px; }
+        .icon-btn { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; border: none; }
     </style>
 </head>
 <body>
@@ -73,11 +77,11 @@
             <div class="guide h-line-1"></div><div class="guide h-line-2"></div>
         </div>
         <div class="controls">
-            <div id="viewer-hint" style="color:#ff3b30; font-size:0.7rem; margin-bottom:8px; font-weight:bold;">停止中：ドラッグで位置調整</div>
+            <div id="viewer-hint" style="color:#aaa; font-size:0.7rem; margin-bottom:8px;">停止中：ドラッグで前のコマと重ねる</div>
             <div class="adjust-row">
-                <button class="mini-btn" onclick="stepFrame(-1)">◀ 前へ</button>
-                <button id="play-btn" class="mini-btn" style="background:var(--accent-color); border:none;" onclick="togglePlay()">PLAY</button>
-                <button class="mini-btn" onclick="stepFrame(1)">次へ ▶</button>
+                <button class="mini-btn" onclick="stepFrame(-1)">◀ PREV</button>
+                <button id="play-btn" class="mini-btn" style="background:var(--accent-color); border:none; font-weight:bold;" onclick="togglePlay()">PLAY</button>
+                <button class="mini-btn" onclick="stepFrame(1)">NEXT ▶</button>
             </div>
             <div class="nav-row" id="preview-controls">
                 <button class="btn" onclick="nav('camera')">RETAKE</button>
@@ -91,13 +95,15 @@
     </div>
 
     <div id="library" class="screen">
-        <h2 style="margin-top:60px;">LIBRARY</h2>
+        <h2 style="margin-top:60px; margin-bottom:0;">LIBRARY</h2>
         <div id="lib-list"></div>
-        <button class="btn" onclick="nav('home')" style="margin-top:25px;">HOME</button>
+        <div class="nav-row">
+            <button class="btn" onclick="nav('home')" style="width:90%">HOME</button>
+        </div>
     </div>
 
     <script>
-        let capturedImages = [], offsets = [], currentMode = 'obj';
+        let capturedImages = [], offsets = [];
         let isDragging = false, lastX = 0, lastY = 0, currentPos = 0, isAutoSpinning = false;
         let db;
 
@@ -122,9 +128,9 @@
         async function initCamera() {
             capturedImages = []; offsets = [];
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 1280, height: 1280 } });
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: {ideal: 1280}, height: {ideal: 1280} } });
                 document.getElementById('video').srcObject = stream;
-            } catch (e) { alert("Camera Error"); }
+            } catch (e) { alert("Camera access failed."); }
         }
 
         function stopCamera() {
@@ -150,23 +156,23 @@
             updateImage();
             document.getElementById('preview-controls').style.display = isPreview ? 'flex' : 'none';
             document.getElementById('library-controls').style.display = isPreview ? 'none' : 'flex';
+            document.getElementById('play-btn').innerText = "PLAY";
             nav('viewer');
         }
 
         function updateImage() {
             const total = capturedImages.length;
+            if(total === 0) return;
             const idx = (Math.floor(currentPos) % total + total) % total;
             const prevIdx = (idx - 1 + total) % total;
 
             const currentLayer = document.getElementById('current-layer');
             const onionLayer = document.getElementById('onion-layer');
 
-            // 現在の画像
             currentLayer.src = capturedImages[idx];
             currentLayer.style.transform = `translate(${offsets[idx].x}px, ${offsets[idx].y}px)`;
 
-            // 1つ前の画像（オニオンスキン）
-            if (!isAutoSpinning && capturedImages.length > 1) {
+            if (!isAutoSpinning && total > 1) {
                 onionLayer.src = capturedImages[prevIdx];
                 onionLayer.style.transform = `translate(${offsets[prevIdx].x}px, ${offsets[prevIdx].y}px)`;
                 onionLayer.style.display = 'block';
@@ -186,7 +192,7 @@
 
         function autoSpin() {
             if (!isAutoSpinning) return;
-            currentPos += 0.15; // 再生速度
+            currentPos += 0.15;
             updateImage();
             requestAnimationFrame(autoSpin);
         }
@@ -198,26 +204,20 @@
             updateImage();
         }
 
-        // --- ドラッグによる位置調整 ---
         const vLayer = document.getElementById('current-layer');
         vLayer.addEventListener('pointerdown', e => {
             if(isAutoSpinning) return;
             isDragging = true;
-            lastX = e.clientX;
-            lastY = e.clientY;
+            lastX = e.clientX; lastY = e.clientY;
             vLayer.setPointerCapture(e.pointerId);
         });
 
         vLayer.addEventListener('pointermove', e => {
             if(!isDragging || isAutoSpinning) return;
             const idx = (Math.floor(currentPos) % capturedImages.length + capturedImages.length) % capturedImages.length;
-            
-            // ドラッグした分だけオフセットを更新
             offsets[idx].x += (e.clientX - lastX);
             offsets[idx].y += (e.clientY - lastY);
-            
-            lastX = e.clientX;
-            lastY = e.clientY;
+            lastX = e.clientX; lastY = e.clientY;
             updateImage();
         });
 
@@ -232,18 +232,30 @@
                 title, data: capturedImages, offsets: offsets, thumb: capturedImages[0], 
                 timestamp: now.getTime(), dateLabel: now.toLocaleString(), count: capturedImages.length
             });
-            transaction.oncomplete = () => { alert("保存しました"); nav('home'); };
+            transaction.oncomplete = () => { alert("Saved!"); nav('home'); };
         }
 
         function openLibrary() {
-            const list = document.getElementById('lib-list'); list.innerHTML = "";
+            const list = document.getElementById('lib-list'); 
+            list.innerHTML = "";
             const transaction = db.transaction(["photos"], "readonly");
             transaction.objectStore("photos").openCursor().onsuccess = e => {
                 const cursor = e.target.result;
                 if(cursor) {
                     const item = cursor.value;
-                    const div = document.createElement('div'); div.className = 'lib-item';
-                    div.innerHTML = `<img src="${item.thumb}" class="thumb"><div style="flex:1;margin-left:10px;"><b style="font-size:0.9rem;">${item.title}</b><br><small style="color:#666;">${item.count} frames</small></div><div class="icon-btn" onclick="viewItem(${item.id})" style="padding:10px; background:#333; border-radius:10px;">▶</div>`;
+                    const div = document.createElement('div'); 
+                    div.className = 'lib-item';
+                    div.innerHTML = `
+                        <img src="${item.thumb}" class="thumb">
+                        <div class="item-info">
+                            <span class="item-title">${item.title}</span>
+                            <span class="item-meta">${item.count} frames • ${item.dateLabel}</span>
+                        </div>
+                        <div class="lib-actions">
+                            <button class="icon-btn" style="background:#333; color:white;" onclick="viewItem(${item.id})">▶</button>
+                            <button class="icon-btn" style="background:#222; color:#666;" onclick="deleteItem(${item.id})">🗑</button>
+                        </div>
+                    `;
                     list.appendChild(div);
                     cursor.continue();
                 }
@@ -254,10 +266,18 @@
         window.viewItem = (id) => {
             const transaction = db.transaction(["photos"], "readonly");
             transaction.objectStore("photos").get(id).onsuccess = e => {
-                capturedImages = e.target.result.data;
-                offsets = e.target.result.offsets || capturedImages.map(() => ({x:0, y:0}));
+                const item = e.target.result;
+                capturedImages = item.data;
+                offsets = item.offsets || capturedImages.map(() => ({x:0, y:0}));
                 startViewer(false);
             };
+        };
+
+        window.deleteItem = (id) => {
+            if(confirm("Delete this item?")) {
+                const transaction = db.transaction(["photos"], "readwrite");
+                transaction.objectStore("photos").delete(id).onsuccess = () => openLibrary();
+            }
         };
     </script>
 </body>
