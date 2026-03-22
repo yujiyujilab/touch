@@ -38,7 +38,6 @@
         .lib-header { width: 92%; display: flex; justify-content: space-between; align-items: center; margin-top: 50px; }
         #lib-list { width: 92%; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 10px 0; }
         .lib-item { background: var(--card-bg); padding: 12px; border-radius: 18px; display: flex; align-items: center; border: 1px solid #2c2c2e; }
-        
         .thumb-wrap { position: relative; width: 64px; height: 64px; flex-shrink: 0; }
         .thumb { width: 100%; height: 100%; border-radius: 14px; object-fit: cover; }
         .badge { position: absolute; background: var(--accent-color); color: white; font-size: 0.6rem; font-weight: bold; padding: 2px 5px; border-radius: 8px; border: 2px solid var(--card-bg); }
@@ -53,7 +52,7 @@
 
     <div id="home" class="screen active">
         <h1>TOUCH</h1>
-        <button class="btn btn-accent" onclick="nav('camera')">CAPTURE</button>
+        <button class="btn btn-red" onclick="nav('camera')">CAPTURE</button>
         <button class="btn" onclick="openLibrary()">LIBRARY</button>
     </div>
 
@@ -68,7 +67,7 @@
             <div id="shutter" onclick="captureFrame()"></div>
             <div class="nav-row">
                 <button class="btn" onclick="nav('home')">CANCEL</button>
-                <button class="btn btn-accent" onclick="startViewer(true)">DONE</button>
+                <button class="btn" onclick="startViewer(true)">DONE</button>
             </div>
         </div>
         <canvas id="buffer" style="display:none;"></canvas>
@@ -100,11 +99,11 @@
 
             <div class="nav-row" id="save-controls">
                 <button class="btn" onclick="nav('camera')">RETAKE</button>
-                <button class="btn btn-accent" onclick="saveToLibrary(false)">SAVE</button>
+                <button class="btn" onclick="saveToLibrary(false)">SAVE</button>
             </div>
             <div class="nav-row" id="lib-nav-controls" style="display:none;">
                 <button class="btn" id="btn-viewer-left" onclick="confirmAndExit('home')">HOME</button>
-                <button class="btn btn-accent" id="btn-viewer-right" onclick="confirmAndExit('library')">BACK</button>
+                <button class="btn" id="btn-viewer-right" onclick="confirmAndExit('library')">BACK</button>
             </div>
         </div>
     </div>
@@ -135,7 +134,7 @@
         function nav(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
-            if(id === 'camera') { initCamera(); }
+            if(id === 'camera') initCamera();
             else if(id !== 'viewer') stopCamera();
             isAutoPlaying = false; velocity = 0;
         }
@@ -150,11 +149,8 @@
         }
 
         async function initCamera() {
-            capturedImages = []; 
-            offsets = []; 
-            currentOpenId = null; 
-            hasUnsavedChanges = false;
-            document.getElementById('counter').innerText = `0 FRAMES`; // 表示をリセット
+            capturedImages = []; offsets = []; currentOpenId = null; hasUnsavedChanges = false;
+            document.getElementById('counter').innerText = `0 FRAMES`;
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 1280, height: 1280 } });
                 document.getElementById('video').srcObject = stream;
@@ -181,7 +177,6 @@
             if(offsets.length === 0) offsets = capturedImages.map(() => ({x:0, y:0}));
             currentPos = 0;
             setMode('preview');
-            // 新規撮影時かライブラリからかでボタンを出し分け
             document.getElementById('save-controls').style.display = isNewCapture ? 'flex' : 'none';
             document.getElementById('lib-nav-controls').style.display = isNewCapture ? 'none' : 'flex';
             nav('viewer');
@@ -191,32 +186,41 @@
         function setMode(mode) {
             isEditScreen = (mode === 'edit');
             isAutoPlaying = false;
-            
-            // UIの表示切り替え
             document.getElementById('preview-ui').style.display = isEditScreen ? 'none' : 'flex';
             document.getElementById('edit-ui').style.display = isEditScreen ? 'flex' : 'none';
             document.getElementById('onion-layer').style.display = isEditScreen ? 'block' : 'none';
-            
-            // EDIT中のみ表示されるグリッド（ビューワー内）
             document.querySelectorAll('#viewer-area .grid').forEach(g => g.style.display = isEditScreen ? 'block' : 'none');
 
-            // ライブラリからの閲覧時、EDIT中は下部ボタンをSAVE AS / UPDATEに変更
+            // ライブラリ閲覧時のボタン管理
             if (currentOpenId !== null) {
-                const leftBtn = document.getElementById('btn-viewer-left');
-                const rightBtn = document.getElementById('btn-viewer-right');
-                if (isEditScreen) {
+                toggleLibEditButtons(isEditScreen && hasUnsavedChanges);
+            }
+            updateImage();
+        }
+
+        // LIBRARYからの編集時：保存ボタンの表示制御
+        function toggleLibEditButtons(show) {
+            const leftBtn = document.getElementById('btn-viewer-left');
+            const rightBtn = document.getElementById('btn-viewer-right');
+            const navContainer = document.getElementById('lib-nav-controls');
+
+            if (isEditScreen) {
+                if (show) {
+                    navContainer.style.display = 'flex';
                     leftBtn.innerText = "SAVE AS";
                     leftBtn.onclick = () => saveToLibrary(false);
                     rightBtn.innerText = "UPDATE";
                     rightBtn.onclick = () => saveToLibrary(true);
                 } else {
-                    leftBtn.innerText = "HOME";
-                    leftBtn.onclick = () => confirmAndExit('home');
-                    rightBtn.innerText = "BACK";
-                    rightBtn.onclick = () => confirmAndExit('library');
+                    navContainer.style.display = 'none'; // 位置調整するまでボタンを隠す
                 }
+            } else {
+                navContainer.style.display = 'flex';
+                leftBtn.innerText = "HOME";
+                leftBtn.onclick = () => confirmAndExit('home');
+                rightBtn.innerText = "BACK";
+                rightBtn.onclick = () => confirmAndExit('library');
             }
-            updateImage();
         }
 
         function updateImage() {
@@ -259,14 +263,31 @@
         }
 
         function stepFrame(dir) { isAutoPlaying = false; currentPos = Math.round(currentPos) + dir; updateImage(); }
-        function resetOffset() { const idx = (Math.floor(currentPos) % capturedImages.length + capturedImages.length) % capturedImages.length; offsets[idx] = {x:0, y:0}; hasUnsavedChanges = true; updateImage(); }
-        function resetAllOffsets() { if(confirm("全ての調整をリセットしますか？")) { offsets = capturedImages.map(() => ({x:0, y:0})); hasUnsavedChanges = true; updateImage(); } }
+        function resetOffset() { 
+            const idx = (Math.floor(currentPos) % capturedImages.length + capturedImages.length) % capturedImages.length; 
+            offsets[idx] = {x:0, y:0}; 
+            hasUnsavedChanges = true; 
+            if(currentOpenId !== null) toggleLibEditButtons(true);
+            updateImage(); 
+        }
+        function resetAllOffsets() { 
+            if(confirm("全ての調整をリセットしますか？")) { 
+                offsets = capturedImages.map(() => ({x:0, y:0})); 
+                hasUnsavedChanges = true; 
+                if(currentOpenId !== null) toggleLibEditButtons(true);
+                updateImage(); 
+            } 
+        }
 
         const vArea = document.getElementById('viewer-area');
         const cLayer = document.getElementById('current-layer');
         vArea.addEventListener('pointerdown', e => { 
             isDragging = true; lastX = e.clientX; lastY = e.clientY; velocity = 0; 
-            if(isEditScreen) { cLayer.classList.add('dragging'); hasUnsavedChanges = true; }
+            if(isEditScreen) { 
+                cLayer.classList.add('dragging'); 
+                hasUnsavedChanges = true;
+                if(currentOpenId !== null) toggleLibEditButtons(true); // ドラッグ開始でボタンを表示
+            }
             vArea.setPointerCapture(e.pointerId); 
         });
         vArea.addEventListener('pointermove', e => {
@@ -297,7 +318,7 @@
                     data.thumb = currentThumb;
                     store.put(data).onsuccess = () => { 
                         hasUnsavedChanges = false; alert("Updated!"); 
-                        setMode('preview'); // 保存後はプレビューに戻す
+                        setMode('preview');
                     };
                 };
             } else {
