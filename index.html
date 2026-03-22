@@ -30,7 +30,7 @@
         
         .btn-row { display: flex; width: 90%; justify-content: center; gap: 8px; margin-bottom: 8px; }
         .mini-btn { background: #333; color: #fff; border: 1px solid #444; padding: 12px; border-radius: 12px; font-size: 0.75rem; flex: 1; max-width: 150px; text-align: center; cursor: pointer; }
-        .btn-red { background: var(--accent-color); border: none; font-weight: bold; }
+        .btn-red { background: var(--accent-color) !important; border: none !important; font-weight: bold; }
 
         .nav-row { display: flex; width: 92%; justify-content: space-around; margin-top: auto; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
         .nav-row .btn { width: 45%; margin: 0; padding: 12px; font-size: 0.8rem; }
@@ -81,7 +81,11 @@
                 <div class="btn-row"><div class="mini-btn" onclick="setMode('edit')" style="max-width:280px;">EDIT MODE</div></div>
             </div>
             <div id="edit-ui" style="width:100%; display:none; flex-direction:column; align-items:center;">
-                <div class="btn-row"><div class="mini-btn" onclick="stepFrame(-1)">◀</div><div class="mini-btn" onclick="stepFrame(1)">▶</div></div>
+                <div class="btn-row">
+                    <div class="mini-btn" style="max-width:60px;" onclick="stepFrame(-1)">◀</div>
+                    <div id="frame-counter" style="color:#fff; font-weight:bold; font-family:monospace; min-width:80px; text-align:center;">[0/0]</div>
+                    <div class="mini-btn" style="max-width:60px;" onclick="stepFrame(1)">▶</div>
+                </div>
                 <div class="btn-row"><div class="mini-btn btn-red" onclick="runAutoPlay()">TEST PLAY</div><div class="mini-btn" onclick="resetOffset()">RESET</div><div class="mini-btn" onclick="resetAllOffsets()">ALL RESET</div></div>
                 <div class="btn-row"><div class="mini-btn" onclick="setMode('preview')" style="max-width:280px;">PREVIEW MODE</div></div>
             </div>
@@ -91,8 +95,8 @@
                 <button class="btn btn-accent" onclick="saveToLibrary(false)">SAVE</button>
             </div>
             <div class="nav-row" id="lib-nav-controls" style="display:none;">
-                <button class="btn" onclick="saveToLibrary(false)">SAVE AS</button>
-                <button class="btn btn-accent" onclick="saveToLibrary(true)">UPDATE</button>
+                <button class="btn" onclick="confirmAndExit('home')">HOME</button>
+                <button class="btn btn-accent" onclick="confirmAndExit('library')">BACK</button>
             </div>
         </div>
     </div>
@@ -101,8 +105,8 @@
         <div class="lib-header">
             <h2 style="margin:0;">LIBRARY</h2>
             <div style="display:flex; gap:5px;">
-                <button class="mini-btn" style="min-width:50px; padding:6px;" onclick="openLibrary('date')">📅</button>
-                <button class="mini-btn" style="min-width:50px; padding:6px;" onclick="openLibrary('name')">ABC</button>
+                <button id="sort-date" class="mini-btn" style="min-width:60px;" onclick="openLibrary('date')">DATE</button>
+                <button id="sort-name" class="mini-btn" style="min-width:60px;" onclick="openLibrary('name')">NAME</button>
             </div>
         </div>
         <div id="lib-list"></div>
@@ -112,6 +116,7 @@
     <script>
         let capturedImages = [], offsets = [], currentOpenId = null;
         let isDragging = false, isEditScreen = false, isAutoPlaying = false;
+        let hasUnsavedChanges = false; // 未保存フラグ
         let lastX = 0, lastY = 0, velocity = 0, currentPos = 0;
         let db;
 
@@ -122,9 +127,19 @@
         function nav(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
-            if(id === 'camera') { initCamera(); currentOpenId = null; }
+            if(id === 'camera') { initCamera(); currentOpenId = null; hasUnsavedChanges = false; }
             else if(id !== 'viewer') stopCamera();
             isAutoPlaying = false; velocity = 0;
+        }
+
+        // 保存せずに戻ろうとした時のチェック
+        function confirmAndExit(target) {
+            if (hasUnsavedChanges) {
+                if (!confirm("調整した位置データが保存されていません。破棄して戻りますか？")) return;
+            }
+            hasUnsavedChanges = false;
+            if (target === 'home') nav('home');
+            else openLibrary();
         }
 
         async function initCamera() {
@@ -176,11 +191,14 @@
             if(total === 0) return;
             const idx = (Math.floor(currentPos) % total + total) % total;
             const prevIdx = (idx - 1 + total) % total;
-            document.getElementById('current-layer').src = capturedImages[idx];
-            document.getElementById('current-layer').style.transform = `translate(${offsets[idx].x}px, ${offsets[idx].y}px)`;
+            if (isEditScreen) document.getElementById('frame-counter').innerText = `[${idx + 1} / ${total}]`;
+            const cImg = document.getElementById('current-layer');
+            const oImg = document.getElementById('onion-layer');
+            cImg.src = capturedImages[idx];
+            cImg.style.transform = `translate(${offsets[idx].x}px, ${offsets[idx].y}px)`;
             if (isEditScreen) {
-                document.getElementById('onion-layer').src = capturedImages[prevIdx];
-                document.getElementById('onion-layer').style.transform = `translate(${offsets[prevIdx].x}px, ${offsets[prevIdx].y}px)`;
+                oImg.src = capturedImages[prevIdx];
+                oImg.style.transform = `translate(${offsets[prevIdx].x}px, ${offsets[prevIdx].y}px)`;
             }
         }
 
@@ -208,14 +226,14 @@
         }
 
         function stepFrame(dir) { isAutoPlaying = false; currentPos = Math.round(currentPos) + dir; updateImage(); }
-        function resetOffset() { const idx = (Math.floor(currentPos) % capturedImages.length + capturedImages.length) % capturedImages.length; offsets[idx] = {x:0, y:0}; updateImage(); }
-        function resetAllOffsets() { if(confirm("全ての調整をリセットしますか？")) { offsets = capturedImages.map(() => ({x:0, y:0})); updateImage(); } }
+        function resetOffset() { const idx = (Math.floor(currentPos) % capturedImages.length + capturedImages.length) % capturedImages.length; offsets[idx] = {x:0, y:0}; hasUnsavedChanges = true; updateImage(); }
+        function resetAllOffsets() { if(confirm("全ての調整をリセットしますか？")) { offsets = capturedImages.map(() => ({x:0, y:0})); hasUnsavedChanges = true; updateImage(); } }
 
         const vArea = document.getElementById('viewer-area');
         const cLayer = document.getElementById('current-layer');
         vArea.addEventListener('pointerdown', e => { 
             isDragging = true; lastX = e.clientX; lastY = e.clientY; velocity = 0; 
-            if(isEditScreen) cLayer.classList.add('dragging');
+            if(isEditScreen) { cLayer.classList.add('dragging'); hasUnsavedChanges = true; } // ドラッグしたら未保存フラグを立てる
             vArea.setPointerCapture(e.pointerId); 
         });
         vArea.addEventListener('pointermove', e => {
@@ -236,33 +254,34 @@
         function saveToLibrary(isUpdate) {
             const transaction = db.transaction(["photos"], "readwrite");
             const store = transaction.objectStore("photos");
-            
-            // 現在のコマをサムネイルにする
             const idx = (Math.floor(currentPos) % capturedImages.length + capturedImages.length) % capturedImages.length;
             const currentThumb = capturedImages[idx];
 
             if (isUpdate && currentOpenId !== null) {
-                // 上書き保存
                 store.get(currentOpenId).onsuccess = e => {
                     const data = e.target.result;
                     data.offsets = offsets;
-                    data.thumb = currentThumb; // サムネイルも更新
-                    store.put(data).onsuccess = () => { alert("Updated!"); openLibrary(); };
+                    data.thumb = currentThumb;
+                    store.put(data).onsuccess = () => { hasUnsavedChanges = false; alert("Updated!"); openLibrary(); };
                 };
             } else {
-                // 新規保存
                 const title = prompt("作品名", new Date().toLocaleString());
                 if(!title) return;
                 store.add({ 
                     title, data: capturedImages, offsets, thumb: currentThumb, 
                     timestamp: Date.now(), count: capturedImages.length, mode: capturedImages.length > 40 ? '360' : 'obj' 
-                }).onsuccess = () => { alert("Saved!"); nav('home'); };
+                }).onsuccess = () => { hasUnsavedChanges = false; alert("Saved!"); nav('home'); };
             }
         }
 
         function openLibrary(sortBy = 'date') {
             const list = document.getElementById('lib-list'); list.innerHTML = "";
             const transaction = db.transaction(["photos"], "readonly");
+            
+            // ソートボタンの色の切り替え
+            document.getElementById('sort-date').classList.toggle('btn-red', sortBy === 'date');
+            document.getElementById('sort-name').classList.toggle('btn-red', sortBy === 'name');
+
             let items = [];
             transaction.objectStore("photos").openCursor().onsuccess = e => {
                 const cursor = e.target.result;
@@ -288,7 +307,7 @@
             transaction.objectStore("photos").get(id).onsuccess = e => {
                 const item = e.target.result;
                 capturedImages = item.data; offsets = item.offsets || item.data.map(()=>({x:0,y:0}));
-                currentOpenId = id; // 現在開いているIDを保持
+                currentOpenId = id; hasUnsavedChanges = false;
                 startViewer(false);
             };
         };
