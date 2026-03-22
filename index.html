@@ -9,44 +9,30 @@
         body { margin: 0; padding: 0; background: var(--bg-color); color: var(--text-color); font-family: -apple-system, sans-serif; overflow: hidden; -webkit-user-select: none; user-select: none; }
         .screen { display: none; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; flex-direction: column; align-items: center; justify-content: center; }
         .screen.active { display: flex; }
-        
         h1 { font-size: 4.5rem; font-weight: 900; letter-spacing: 0.2em; margin: 0 0 2rem 0.2em; }
-        
-        /* UI Components */
         .btn { background: #2c2c2e; color: #fff; border: 1px solid #3a3a3c; padding: 18px; font-size: 1rem; border-radius: 14px; margin: 8px; cursor: pointer; width: 85%; max-width: 320px; text-align: center; -webkit-tap-highlight-color: transparent; }
         .btn-accent { background: var(--accent-color); border: none; font-weight: bold; }
-        .btn-danger { background: #444; border: none; font-size: 0.8rem; width: auto; padding: 8px 12px; }
+        .btn-danger { background: #444; border: none; font-size: 0.9rem; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
         .btn:active { opacity: 0.7; transform: scale(0.98); }
-
-        /* CAMERA */
         #camera-container { width: 100%; height: 70%; background: #000; position: relative; }
         video { width: 100%; height: 100%; object-fit: cover; }
         canvas { display: none; }
-        
-        /* 3x3 Grid Guidelines */
         .guide { position: absolute; background: rgba(255,255,255,0.3); pointer-events: none; }
         .v-line-1 { width: 1px; height: 100%; left: 33.3%; }
         .v-line-2 { width: 1px; height: 100%; left: 66.6%; }
         .h-line-1 { width: 100%; height: 1px; top: 33.3%; left: 0; }
         .h-line-2 { width: 100%; height: 1px; top: 66.6%; left: 0; }
-        
-        /* Bottom Controls for Modern OS */
         .controls { width: 100%; height: 30%; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; background: #000; padding-top: 20px; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
         #shutter { width: 75px; height: 75px; border-radius: 50%; background: #fff; border: 5px solid #333; margin-bottom: 20px; }
         .nav-row { display: flex; width: 90%; justify-content: space-around; margin-top: auto; }
         .nav-row .btn { width: 44%; margin: 0; padding: 14px; font-size: 0.9rem; }
-
-        /* VIEWER */
         #viewer-area { width: 100%; height: 70%; position: relative; background: #000; display: flex; align-items: center; justify-content: center; touch-action: none; overflow: hidden; }
         #viewer-img { max-width: 100%; max-height: 100%; pointer-events: none; }
-        
-        /* LIBRARY LIST */
-        #library h2 { margin-top: 60px; letter-spacing: 0.1em; }
         #lib-list { width: 92%; height: 65%; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 10px 0; }
         .lib-item { background: var(--card-bg); padding: 12px; border-radius: 16px; display: flex; align-items: center; border: 1px solid #333; }
-        .thumb { width: 60px; height: 60px; border-radius: 8px; object-fit: cover; margin-right: 15px; background: #333; }
-        .item-info { flex-grow: 1; overflow: hidden; }
-        .item-title { display: block; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
+        .thumb { width: 60px; height: 60px; border-radius: 8px; object-fit: cover; margin-right: 15px; background: #333; border: 1px solid #444; }
+        .item-info { flex-grow: 1; overflow: hidden; margin-right: 10px; }
+        .item-title { display: block; font-size: 0.9rem; color: #eee; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     </style>
 </head>
 <body>
@@ -77,8 +63,7 @@
     <div id="viewer" class="screen">
         <div id="viewer-area"><img id="viewer-img"></div>
         <div class="controls">
-            <div id="viewer-msg" style="color:#888; font-size:0.8rem; margin-bottom: 5px;">SWIPE TO ROTATE</div>
-            <button class="btn" id="autoplay-btn" onclick="runAutoSpin()" style="width:100px; padding:8px; font-size:0.8rem; margin-bottom:15px;">▶ AUTO PLAY</button>
+            <button class="btn" onclick="runAutoSpin()" style="width:120px; padding:10px; font-size:0.8rem; margin-bottom:15px; background:#444;">▶ AUTO PLAY</button>
             <div class="nav-row" id="preview-controls">
                 <button class="btn" onclick="nav('camera')">RETAKE</button>
                 <button class="btn btn-accent" onclick="saveToLibrary()">SAVE</button>
@@ -91,7 +76,7 @@
     </div>
 
     <div id="library" class="screen">
-        <h2>LIBRARY</h2>
+        <h2 style="margin-top: 60px; letter-spacing: 0.1em;">LIBRARY</h2>
         <div id="lib-list"></div>
         <button class="btn" onclick="nav('home')" style="margin: 20px 0 40px 0;">HOME</button>
     </div>
@@ -120,7 +105,7 @@
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 1280, height: 1280 } });
                 document.getElementById('video').srcObject = stream;
-            } catch (e) { alert("カメラ起動エラー"); }
+            } catch (e) { alert("カメラを許可してください"); }
         }
 
         function stopCamera() {
@@ -149,7 +134,7 @@
         function runAutoSpin() {
             if(isAutoSpinning) return;
             isAutoSpinning = true;
-            let start = null, duration = 2000, spins = 2;
+            let start = null, duration = 1800, spins = 2;
             function animate(time) {
                 if(!start) start = time;
                 let progress = (time - start) / duration;
@@ -174,39 +159,59 @@
         function saveToLibrary() {
             const title = prompt("名前をつけて保存", new Date().toLocaleString());
             if(!title) return;
+            
+            // サムネイル用のデータを確実に取得
+            const thumbData = capturedImages[0];
+            
             const transaction = db.transaction(["photos"], "readwrite");
-            transaction.objectStore("photos").add({ title: title, data: capturedImages, thumb: capturedImages[0] });
-            transaction.oncomplete = () => { alert("保存成功"); nav('home'); };
+            const store = transaction.objectStore("photos");
+            store.add({ title: title, data: capturedImages, thumb: thumbData });
+            
+            transaction.oncomplete = () => { alert("保存しました"); nav('home'); };
+            transaction.onerror = () => { alert("保存に失敗しました"); };
         }
 
         function deleteItem(id, e) {
             e.stopPropagation();
-            if(!confirm("削除しますか？")) return;
+            if(!confirm("このデータを削除しますか？")) return;
             const transaction = db.transaction(["photos"], "readwrite");
             transaction.objectStore("photos").delete(id);
             transaction.oncomplete = () => openLibrary();
         }
 
         async function openLibrary() {
-            const list = document.getElementById('lib-list'); list.innerHTML = "";
+            const list = document.getElementById('lib-list'); 
+            list.innerHTML = "";
             const transaction = db.transaction(["photos"], "readonly");
-            transaction.objectStore("photos").openCursor().onsuccess = e => {
+            const store = transaction.objectStore("photos");
+            
+            store.openCursor(null, 'prev').onsuccess = e => {
                 const cursor = e.target.result;
                 if(cursor) {
                     const item = cursor.value;
-                    const div = document.createElement('div'); div.className = 'lib-item';
-                    div.innerHTML = `<img src="${item.thumb}" class="thumb">
-                                     <div class="item-info"><span class="item-title">${item.title}</span></div>`;
+                    const div = document.createElement('div'); 
+                    div.className = 'lib-item';
                     
-                    const vBtn = document.createElement('button'); vBtn.innerText = "VIEW"; vBtn.className = "btn";
-                    vBtn.style.width = "70px"; vBtn.style.padding = "8px"; vBtn.style.margin = "0 8px 0 0";
+                    // サムネイルが空の場合の予備処理
+                    const imgSrc = item.thumb || item.data[0];
+                    
+                    div.innerHTML = `
+                        <img src="${imgSrc}" class="thumb">
+                        <div class="item-info"><span class="item-title">${item.title}</span></div>
+                    `;
+                    
+                    const vBtn = document.createElement('button'); 
+                    vBtn.innerText = "VIEW"; vBtn.className = "btn";
+                    vBtn.style.width = "70px"; vBtn.style.padding = "10px"; vBtn.style.margin = "0 10px 0 0";
                     vBtn.onclick = () => { capturedImages = item.data; startViewer(false); };
                     
-                    const dBtn = document.createElement('button'); dBtn.innerText = "×"; dBtn.className = "btn-danger";
+                    const dBtn = document.createElement('button'); 
+                    dBtn.innerText = "×"; dBtn.className = "btn-danger";
                     dBtn.onclick = (e) => deleteItem(item.id, e);
                     
                     div.appendChild(vBtn); div.appendChild(dBtn);
-                    list.appendChild(div); cursor.continue();
+                    list.appendChild(div);
+                    cursor.continue();
                 }
             };
             nav('library');
@@ -217,7 +222,7 @@
         vArea.addEventListener('pointermove', e => {
             if(!isDragging || isAutoSpinning) return;
             const dx = e.clientX - lastX;
-            velocity += (dx / window.innerWidth) * (capturedImages.length * 2.0); // 係数2.0
+            velocity += (dx / window.innerWidth) * (capturedImages.length * 2.0); 
             lastX = e.clientX;
         });
         vArea.addEventListener('pointerup', () => isDragging = false);
