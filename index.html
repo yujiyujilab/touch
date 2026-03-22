@@ -16,36 +16,31 @@
         
         #camera-container { width: 100%; height: 65%; background: #000; position: relative; overflow: hidden; }
         video { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 1; }
-        .guide { position: absolute; background: rgba(255,255,255,0.4); pointer-events: none; z-index: 100; }
-        .v-line-1 { width: 1.5px; height: 100%; left: 33.3%; } .v-line-2 { width: 1.5px; height: 100%; left: 66.6%; }
-        .h-line-1 { width: 100%; height: 1.5px; top: 33.3%; left: 0; } .h-line-2 { width: 100%; height: 1.5px; top: 66.6%; left: 0; }
         
-        .controls { width: 100%; height: 35%; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; background: #000; padding-top: 15px; padding-bottom: calc(30px + env(safe-area-inset-bottom)); z-index: 10; }
-        #shutter { width: 75px; height: 75px; border-radius: 50%; background: #fff; border: 6px solid #333; margin-bottom: 15px; }
-        .nav-row { display: flex; width: 92%; justify-content: space-around; margin-top: auto; }
-        .nav-row .btn { width: 45%; margin: 0; padding: 14px; font-size: 0.9rem; }
-
         #viewer-area { width: 100%; height: 65%; position: relative; background: #000; display: flex; align-items: center; justify-content: center; touch-action: none; overflow: hidden; }
         #viewer-img { max-width: 100%; max-height: 100%; pointer-events: none; }
         
-        #mode-toggle { background: #222; padding: 8px 15px; border-radius: 20px; font-size: 0.75rem; margin-bottom: 12px; cursor: pointer; border: 1px solid #444; color: #aaa; }
+        /* トラッキング用ターゲット */
+        #track-target { position: absolute; width: 40px; height: 40px; border: 2px solid var(--accent-color); border-radius: 50%; display: none; pointer-events: none; z-index: 100; }
+        #track-target::after, #track-target::before { content: ''; position: absolute; background: var(--accent-color); }
+        #track-target::after { width: 100%; height: 1px; top: 50%; left: 0; }
+        #track-target::before { width: 1px; height: 100%; left: 50%; top: 0; }
+
+        .controls { width: 100%; height: 35%; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; background: #000; padding-top: 15px; z-index: 10; }
+        #shutter { width: 75px; height: 75px; border-radius: 50%; background: #fff; border: 6px solid #333; margin-bottom: 15px; }
+        .nav-row { display: flex; width: 92%; justify-content: space-around; margin-top: auto; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+        .nav-row .btn { width: 45%; margin: 0; padding: 14px; font-size: 0.9rem; }
 
         #lib-list { width: 92%; height: 50%; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
         .lib-item { background: var(--card-bg); padding: 10px; border-radius: 16px; display: flex; align-items: center; border: 1px solid #333; }
-        .thumb-container { position: relative; margin-right: 12px; }
-        .thumb { width: 60px; height: 60px; border-radius: 10px; object-fit: cover; background: #333; }
-        .count-badge { position: absolute; bottom: -4px; right: -4px; background: var(--accent-color); color: white; font-size: 0.6rem; padding: 2px 5px; border-radius: 8px; font-weight: bold; border: 2px solid var(--card-bg); }
-        .item-info { flex-grow: 1; min-width: 0; }
-        .title-row { display: flex; align-items: center; gap: 6px; }
-        .item-title { font-size: 0.95rem; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .icon-btn { width: 44px; height: 44px; border-radius: 12px; border: 1px solid #3a3a3c; display: flex; align-items: center; justify-content: center; margin-left: 8px; font-size: 1.1rem; cursor: pointer; background: #2c2c2e; color: #fff; }
+        .thumb { width: 60px; height: 60px; border-radius: 10px; object-fit: cover; }
         
         #loading { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; color: white; flex-direction: column; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
 
-    <div id="loading"><div style="margin-bottom:15px; font-weight:bold;">Stabilizing Background...</div><div id="load-progress">0%</div></div>
+    <div id="loading"><div style="margin-bottom:15px; font-weight:bold;">Tracking Point...</div><div id="load-progress">0%</div></div>
 
     <div id="home" class="screen active">
         <h1>TOUCH</h1>
@@ -54,11 +49,7 @@
     </div>
 
     <div id="camera" class="screen">
-        <div id="camera-container">
-            <video id="video" autoplay playsinline muted></video>
-            <div class="guide v-line-1"></div><div class="guide v-line-2"></div>
-            <div class="guide h-line-1"></div><div class="guide h-line-2"></div>
-        </div>
+        <div id="camera-container"><video id="video" autoplay playsinline muted></video></div>
         <div class="controls">
             <div id="counter" style="color:#666; font-size:0.75rem; margin-bottom:10px;">0 FRAMES</div>
             <div id="shutter" onclick="captureFrame()"></div>
@@ -71,13 +62,15 @@
     </div>
 
     <div id="viewer" class="screen">
-        <div id="viewer-area"><img id="viewer-img"></div>
+        <div id="viewer-area">
+            <img id="viewer-img">
+            <div id="track-target"></div>
+        </div>
         <div class="controls">
-            <div id="mode-toggle" onclick="toggleModeManually()">MODE: 📦 OBJECT</div>
+            <p id="viewer-hint" style="color:#aaa; font-size:0.7rem; margin:0 0 10px 0;">背景の動かない箇所をタップして固定</p>
             <div style="display:flex; gap:10px; margin-bottom:15px;">
-                <button id="align-btn" class="btn" onclick="alignBackground()" style="width:130px; padding:10px; font-size:0.8rem; background:#2c2c2e; border-color:#555;">🪄 AUTO STABILIZE</button>
-                <button id="undo-btn" class="btn" onclick="resetAlign()" style="width:80px; padding:10px; font-size:0.8rem; background:#444; display:none;">↺ UNDO</button>
-                <button class="btn" onclick="runAutoSpin()" style="width:70px; padding:10px; font-size:0.8rem; background:#222;">▶ PLAY</button>
+                <button id="undo-btn" class="btn" onclick="resetAlign()" style="width:100px; padding:10px; font-size:0.8rem; background:#444; display:none;">↺ RESET</button>
+                <button class="btn" onclick="runAutoSpin()" style="width:100px; padding:10px; font-size:0.8rem; background:#222;">▶ PLAY</button>
             </div>
             <div class="nav-row" id="preview-controls">
                 <button class="btn" onclick="nav('camera')">RETAKE</button>
@@ -97,95 +90,58 @@
     </div>
 
     <script>
-        let capturedImages = [];
-        let offsets = [];
-        let currentMode = 'obj';
+        let capturedImages = [], offsets = [], currentMode = 'obj';
         let isDragging = false, lastX = 0, velocity = 0, currentPos = 0, isAutoSpinning = false;
         let startAngle = null, currentAngle = 0, maxDiffAngle = 0;
         const friction = 0.92, dragDamping = 0.4;
         let db;
 
-        // IndexedDB初期化
         const request = indexedDB.open("TouchAppDB", 1);
         request.onupgradeneeded = e => { e.target.result.createObjectStore("photos", { keyPath: "id", autoIncrement: true }); };
         request.onsuccess = e => { db = e.target.result; };
 
-        // センサー許可と画面遷移
         async function requestSensorAndNav() {
             if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                try {
-                    const permission = await DeviceOrientationEvent.requestPermission();
-                    if (permission === 'granted') {
-                        window.addEventListener('deviceorientation', handleOrientation);
-                    }
-                } catch (e) { console.error("Sensor permission failed:", e); }
-            } else {
-                window.addEventListener('deviceorientation', handleOrientation);
+                try { await DeviceOrientationEvent.requestPermission(); } catch (e) {}
             }
-            // 許可の状態に関わらず、カメラ画面へは遷移させる
+            window.addEventListener('deviceorientation', e => {
+                if (e.alpha !== null) {
+                    currentAngle = e.alpha;
+                    if (capturedImages.length > 0) {
+                        if (startAngle === null) startAngle = currentAngle;
+                        let diff = Math.abs(currentAngle - startAngle);
+                        if (diff > 180) diff = 360 - diff;
+                        if (diff > maxDiffAngle) maxDiffAngle = diff;
+                    }
+                }
+            });
             nav('camera');
         }
 
-        function handleOrientation(e) {
-            if (e.alpha !== null) {
-                currentAngle = e.alpha;
-                if (capturedImages.length > 0) {
-                    if (startAngle === null) startAngle = currentAngle;
-                    let diff = Math.abs(currentAngle - startAngle);
-                    if (diff > 180) diff = 360 - diff;
-                    if (diff > maxDiffAngle) maxDiffAngle = diff;
-                }
-            }
-        }
-
         function nav(id) {
-            // 全画面を非表示にしてから対象を表示
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            const target = document.getElementById(id);
-            if(target) target.classList.add('active');
-
-            if(id === 'camera') {
-                initCamera();
-            } else {
-                stopCamera();
-            }
-            
-            // 状態リセット
+            document.getElementById(id).classList.add('active');
+            if(id === 'camera') initCamera(); else stopCamera();
             isAutoSpinning = false;
-            startAngle = null; 
-            maxDiffAngle = 0;
         }
 
         async function initCamera() {
-            capturedImages = [];
-            offsets = [];
-            document.getElementById('counter').innerText = "0 FRAMES";
+            capturedImages = []; offsets = [];
             const video = document.getElementById('video');
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 1280 } } 
-                });
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 1280, height: 1280 } });
                 video.srcObject = stream;
-                video.onloadedmetadata = () => video.play();
-            } catch (e) { 
-                console.error("Camera access failed:", e);
-                alert("カメラにアクセスできません。設定を確認してください。"); 
-            }
+            } catch (e) { alert("Camera Error"); }
         }
 
         function stopCamera() {
             const video = document.getElementById('video');
-            if(video && video.srcObject) { 
-                video.srcObject.getTracks().forEach(t => t.stop()); 
-                video.srcObject = null; 
-            }
+            if(video.srcObject) { video.srcObject.getTracks().forEach(t => t.stop()); video.srcObject = null; }
         }
 
         function captureFrame() {
             const video = document.getElementById('video');
             const canvas = document.getElementById('buffer');
-            if(!video.srcObject) return;
-
             canvas.width = video.videoWidth; canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0);
             capturedImages.push(canvas.toDataURL('image/jpeg', 0.5));
@@ -194,77 +150,93 @@
         }
 
         function startViewer(isPreview) {
-            if(capturedImages.length < 2) return alert("2枚以上撮影してください");
+            if(capturedImages.length < 2) return;
             if(offsets.length === 0) offsets = capturedImages.map(() => ({x:0, y:0}));
-            
             currentMode = maxDiffAngle > 100 ? '360' : 'obj';
-            updateModeUI();
             updateImage();
-
             document.getElementById('preview-controls').style.display = isPreview ? 'flex' : 'none';
             document.getElementById('library-controls').style.display = isPreview ? 'none' : 'flex';
-            document.getElementById('align-btn').style.display = isPreview ? 'block' : 'none';
-            document.getElementById('undo-btn').style.display = 'none';
-            document.getElementById('mode-toggle').style.display = isPreview ? 'block' : 'none';
+            document.getElementById('track-target').style.display = isPreview ? 'none' : 'none';
             nav('viewer');
             if(isPreview) runAutoSpin(); else renderViewer();
         }
 
-        function toggleModeManually() {
-            currentMode = (currentMode === 'obj') ? '360' : 'obj';
-            updateModeUI();
-        }
+        // --- ポイントトラッキング (テンプレートマッチング) ---
+        const vArea = document.getElementById('viewer-area');
+        vArea.onclick = async (e) => {
+            if (isAutoSpinning || document.getElementById('library-controls').style.display === 'flex') return;
+            
+            const rect = vArea.getBoundingClientRect();
+            const tapX = e.clientX - rect.left;
+            const tapY = e.clientY - rect.top;
+            
+            // ターゲット表示
+            const target = document.getElementById('track-target');
+            target.style.left = `${tapX - 20}px`;
+            target.style.top = `${tapY - 20}px`;
+            target.style.display = 'block';
 
-        function updateModeUI() {
-            const btn = document.getElementById('mode-toggle');
-            if(btn) btn.innerText = currentMode === 'obj' ? "MODE: 📦 OBJECT" : "MODE: 🌐 360° VIEW";
-        }
+            if(confirm("この地点を基準に全フレームを固定しますか？")) {
+                await runPointTracking(tapX / rect.width, tapY / rect.height);
+            } else {
+                target.style.display = 'none';
+            }
+        };
 
-        async function alignBackground() {
+        async function runPointTracking(normX, normY) {
             const loading = document.getElementById('loading');
             loading.style.display = 'flex';
             const canvas = document.getElementById('buffer');
             const ctx = canvas.getContext('2d', { willReadFrequently: true });
-            const bgAnchors = [];
-            const size = 160;
+            
+            // 1. テンプレート(32x32)を1枚目から抽出
+            const img0 = await loadImage(capturedImages[0]);
+            const fullW = img0.width, fullH = img0.height;
+            const tx = normX * fullW, ty = normY * fullH;
+            const tSize = 32; // テンプレートサイズ
+            const sSize = 120; // 探索範囲
 
+            canvas.width = tSize; canvas.height = tSize;
+            ctx.drawImage(img0, tx - tSize/2, ty - tSize/2, tSize, tSize, 0, 0, tSize, tSize);
+            const template = ctx.getImageData(0, 0, tSize, tSize).data;
+
+            // 2. 各フレームで探索
             for (let i = 0; i < capturedImages.length; i++) {
                 document.getElementById('load-progress').innerText = `${Math.round((i/capturedImages.length)*100)}%`;
                 const img = await loadImage(capturedImages[i]);
-                canvas.width = size; canvas.height = size; 
-                ctx.drawImage(img, 0, 0, size, size);
-                const data = ctx.getImageData(0, 0, size, size).data;
-                
-                let sumX = 0, sumY = 0, count = 0;
-                for (let y = 0; y < size; y += 4) {
-                    for (let x = 0; x < size; x += 4) {
-                        const distFromCenter = Math.sqrt((x - size/2)**2 + (y - size/2)**2);
-                        if (distFromCenter > (size/2) * 0.65) { 
-                            const idx = (y * size + x) * 4;
-                            const brightness = (data[idx] + data[idx+1] + data[idx+2])/3;
-                            if (brightness > 50 && brightness < 200) {
-                                sumX += x * brightness; sumY += y * brightness; count += brightness;
+                canvas.width = sSize; canvas.height = sSize;
+                ctx.drawImage(img, tx - sSize/2, ty - sSize/2, sSize, sSize, 0, 0, sSize, sSize);
+                const searchArea = ctx.getImageData(0, 0, sSize, sSize).data;
+
+                let bestX = 0, bestY = 0, minDiff = Infinity;
+                // 探索範囲内をスキャン
+                for (let sy = 0; sy < sSize - tSize; sy += 2) {
+                    for (let sx = 0; sx < sSize - tSize; sx += 2) {
+                        let diff = 0;
+                        // テンプレートとの差分(SSD)を計算
+                        for (let py = 0; py < tSize; py += 4) {
+                            for (let px = 0; px < tSize; px += 4) {
+                                const sIdx = ((sy + py) * sSize + (sx + px)) * 4;
+                                const tIdx = (py * tSize + px) * 4;
+                                diff += Math.abs(searchArea[sIdx] - template[tIdx]);
                             }
                         }
+                        if (diff < minDiff) { minDiff = diff; bestX = sx; bestY = sy; }
                     }
                 }
-                bgAnchors.push(count > 0 ? {x: sumX/count, y: sumY/count} : {x: size/2, y: size/2});
-                if(i % 5 === 0) await new Promise(r => setTimeout(r, 1));
-            }
-
-            const base = bgAnchors[0];
-            const scale = 1280 / size;
-            offsets = bgAnchors.map((anchor, i) => {
-                let offX = (base.x - anchor.x) * scale;
-                let offY = (base.y - anchor.y) * scale;
-                offX = Math.max(-100, Math.min(100, offX));
-                offY = Math.max(-100, Math.min(100, offY));
+                
+                // 座標のズレを計算してオフセット保存
+                let offX = (sSize/2 - tSize/2) - bestX;
+                let offY = (sSize/2 - tSize/2) - bestY;
+                
+                // ループ吸着処理
                 if (i > capturedImages.length * 0.85) {
                     const ratio = (i - capturedImages.length * 0.85) / (capturedImages.length * 0.15);
                     offX *= (1 - ratio); offY *= (1 - ratio);
                 }
-                return {x: offX, y: offY};
-            });
+                offsets[i] = {x: offX, y: offY};
+                if(i % 5 === 0) await new Promise(r => setTimeout(r, 1));
+            }
 
             loading.style.display = 'none';
             document.getElementById('undo-btn').style.display = 'block';
@@ -274,6 +246,7 @@
         function resetAlign() {
             offsets = capturedImages.map(() => ({x: 0, y: 0}));
             document.getElementById('undo-btn').style.display = 'none';
+            document.getElementById('track-target').style.display = 'none';
             updateImage();
         }
 
@@ -307,7 +280,7 @@
 
         function saveToLibrary() {
             const now = new Date();
-            const title = prompt("保存名を入力してください", now.toLocaleString());
+            const title = prompt("保存名", now.toLocaleString());
             if(!title) return;
             const transaction = db.transaction(["photos"], "readwrite");
             transaction.objectStore("photos").add({ 
@@ -318,21 +291,16 @@
         }
 
         function openLibrary() {
-            const list = document.getElementById('lib-list'); 
-            if(!list) return;
-            list.innerHTML = "";
+            const list = document.getElementById('lib-list'); list.innerHTML = "";
             const transaction = db.transaction(["photos"], "readonly");
-            let items = [];
             transaction.objectStore("photos").openCursor().onsuccess = e => {
                 const cursor = e.target.result;
-                if(cursor) { items.push(cursor.value); cursor.continue(); }
-                else {
-                    items.sort((a,b) => b.timestamp - a.timestamp);
-                    items.forEach(item => {
-                        const div = document.createElement('div'); div.className = 'lib-item';
-                        div.innerHTML = `<div class="thumb-container"><img src="${item.thumb}" class="thumb"><div class="count-badge">${item.count}</div></div><div class="item-info"><div class="title-row"><span class="item-title">${item.title}</span><span>${item.mode==='360'?'🌐':'📦'}</span></div><span class="item-date">${item.dateLabel}</span></div><div class="icon-btn" onclick="viewItem(${item.id})">▶</div><div class="icon-btn" onclick="deleteItem(${item.id})">🗑</div>`;
-                        list.appendChild(div);
-                    });
+                if(cursor) {
+                    const item = cursor.value;
+                    const div = document.createElement('div'); div.className = 'lib-item';
+                    div.innerHTML = `<img src="${item.thumb}" class="thumb"><div style="flex:1;margin-left:10px;"><b style="font-size:0.9rem;">${item.title}</b><br><small style="color:#666;">${item.count} frames</small></div><div class="icon-btn" onclick="viewItem(${item.id})">▶</div><div class="icon-btn" onclick="deleteItem(${item.id})">🗑</div>`;
+                    list.appendChild(div);
+                    cursor.continue();
                 }
             };
             nav('library');
@@ -349,12 +317,12 @@
         };
 
         window.deleteItem = (id) => {
-            if(!confirm("削除しますか？")) return;
-            const transaction = db.transaction(["photos"], "readwrite");
-            transaction.objectStore("photos").delete(id).onsuccess = () => openLibrary();
+            if(confirm("削除しますか？")) {
+                const transaction = db.transaction(["photos"], "readwrite");
+                transaction.objectStore("photos").delete(id).onsuccess = () => openLibrary();
+            }
         };
 
-        const vArea = document.getElementById('viewer-area');
         vArea.addEventListener('pointerdown', e => { if(isAutoSpinning) return; isDragging = true; lastX = e.clientX; velocity = 0; vArea.setPointerCapture(e.pointerId); });
         vArea.addEventListener('pointermove', e => {
             if(!isDragging || isAutoSpinning) return;
