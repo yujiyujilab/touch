@@ -11,32 +11,27 @@
         .screen.active { display: flex; }
         h1 { font-size: 4.5rem; font-weight: 900; letter-spacing: 0.2em; margin: 15vh 0 2rem 0.2em; }
         
-        /* Buttons */
         .btn { background: #2c2c2e; color: #fff; padding: 18px; font-size: 1rem; border-radius: 14px; margin: 8px; cursor: pointer; width: 85%; max-width: 320px; text-align: center; border: none; }
         .btn-red { background: var(--accent-color) !important; font-weight: bold; }
         .mini-btn { background: #333; color: #fff; border: 1px solid #444; padding: 12px; border-radius: 12px; font-size: 0.75rem; flex: 1; max-width: 150px; text-align: center; cursor: pointer; }
         .nav-row { display: flex; width: 92%; justify-content: space-around; margin-top: auto; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
         .nav-row .btn { width: 45%; margin: 0; padding: 12px; font-size: 0.8rem; }
 
-        /* Camera & Viewer Area */
         #camera-container, #viewer-area { width: 100vw; height: 60vh; background: #000; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
         video, .viewer-layer, #onion-guide { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
         #onion-guide { z-index: 5; opacity: 0.3; display: none; pointer-events: none; }
         #onion-layer { z-index: 5; display: none; } 
-        #current-layer { z-index: 10; touch-action: none; transition: opacity 0.1s; } 
+        #current-layer { z-index: 10; touch-action: none; } 
         #current-layer.dragging { opacity: 0.6; } 
 
-        /* Grid & Leveler */
-        .grid { position: absolute; background: rgba(255,255,255,0.3); pointer-events: none; z-index: 15; transition: background 0.2s, box-shadow 0.2s; }
+        .grid { position: absolute; background: rgba(255,255,255,0.3); pointer-events: none; z-index: 15; transition: background 0.2s; }
         .grid.aligned { background: var(--safe-color); box-shadow: 0 0 8px var(--safe-color); }
         #leveler-dot { position: absolute; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #fff; z-index: 16; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; }
 
-        /* Controls */
         .controls { width: 100%; flex-grow: 1; display: flex; flex-direction: column; align-items: center; background: #000; padding-top: 10px; z-index: 20; }
         #shutter { width: 70px; height: 70px; border-radius: 50%; background: #fff; border: 5px solid #333; margin-bottom: 10px; transition: background 0.1s; }
         #shutter:active { background: #ccc; }
 
-        /* Library List */
         .lib-header { width: 92%; display: flex; justify-content: space-between; align-items: center; margin-top: 50px; }
         #lib-list { width: 92%; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 10px 0; }
         .lib-item { background: var(--card-bg); padding: 12px; border-radius: 18px; display: flex; align-items: center; border: 1px solid #2c2c2e; }
@@ -92,12 +87,16 @@
             <img id="current-layer" class="viewer-layer">
         </div>
         <div class="controls">
-            <div id="preview-ui" style="width:100%; display:flex; flex-direction:column; align-items:center; gap:12px;">
-                <div style="display:flex; gap:10px; width:90%; justify-content:center;">
-                    <div id="btn-loop" class="mini-btn" onclick="toggleLoopPlay()" style="max-width:140px; border:2px solid var(--accent-color);">LOOP: OFF</div>
-                    <div id="btn-speed" class="mini-btn" onclick="cycleSpeed()" style="max-width:80px;">×1.0</div>
+            <div id="preview-ui" style="width:100%; display:flex; flex-direction:column; align-items:center; gap:10px;">
+                <div style="display:flex; gap:8px; width:92%; justify-content:center;">
+                    <div id="btn-loop" class="mini-btn" onclick="toggleLoopPlay()" style="flex:2; border:2px solid var(--accent-color);">LOOP: OFF</div>
+                    <div id="btn-speed" class="mini-btn" onclick="cycleSpeed()" style="flex:1;">×1.0</div>
                 </div>
-                <div class="mini-btn" onclick="setMode('edit')" style="width:80%; max-width:240px; opacity:0.7;">EDIT MODE</div>
+                <div style="display:flex; gap:8px; width:92%; justify-content:center;">
+                    <div class="mini-btn" onclick="stepFrame(-1)" style="background:#2c2c2e;">◀ STEP</div>
+                    <div class="mini-btn" onclick="stepFrame(1)" style="background:#2c2c2e;">STEP ▶</div>
+                </div>
+                <div class="mini-btn" onclick="setMode('edit')" style="width:85%; max-width:280px; opacity:0.6; margin-top:5px;">EDIT MODE (ALIGN)</div>
             </div>
 
             <div id="edit-ui" style="width:100%; display:none; flex-direction:column; align-items:center;">
@@ -106,7 +105,7 @@
                     <div id="frame-counter" style="color:#fff; font-weight:bold; font-family:monospace; min-width:80px; text-align:center;">[0/0]</div>
                     <div class="mini-btn" style="max-width:50px;" onclick="stepFrame(1)">▶</div>
                 </div>
-                <div style="display:flex; gap:8px; width:90%; justify-content:center;">
+                <div style="display:flex; gap:8px; width:92%; justify-content:center;">
                     <div class="mini-btn" onclick="resetOffset()">RESET</div>
                     <div class="mini-btn" onclick="resetAllOffsets()">ALL RESET</div>
                     <div class="mini-btn" onclick="setMode('preview')" style="background:#444;">EXIT</div>
@@ -118,8 +117,8 @@
                 <button class="btn" onclick="saveToLibrary(false)">SAVE</button>
             </div>
             <div class="nav-row" id="lib-nav-controls" style="display:none;">
-                <button class="btn" id="btn-viewer-left" onclick="confirmAndExit('home')">HOME</button>
-                <button class="btn" id="btn-viewer-right" onclick="confirmAndExit('library')">BACK</button>
+                <button class="btn" onclick="confirmAndExit('home')">HOME</button>
+                <button class="btn" onclick="confirmAndExit('library')">BACK</button>
             </div>
         </div>
     </div>
@@ -143,20 +142,17 @@
         let lastX = 0, lastY = 0, velocity = 0, currentPos = 0;
         let tiltX = 0, tiltY = 0, db;
 
-        // DB Initialization
         const request = indexedDB.open("TouchAppDB", 1);
         request.onupgradeneeded = e => { e.target.result.createObjectStore("photos", { keyPath: "id", autoIncrement: true }); };
         request.onsuccess = e => { db = e.target.result; };
 
-        // Navigation
         function nav(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
-            if(id === 'camera') initCamera(); else stopCamera();
             isAutoPlaying = false; velocity = 0;
+            if(id === 'camera') initCamera(); else stopCamera();
         }
 
-        // Camera Logic
         async function initCamera() {
             capturedImages = []; offsets = []; currentOpenId = null; hasUnsavedChanges = false;
             document.getElementById('counter').innerText = `0 FRAMES`;
@@ -164,21 +160,18 @@
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 1280, height: 1280 } });
                 document.getElementById('video').srcObject = stream;
-                if (window.DeviceOrientationEvent) {
-                    window.addEventListener('deviceorientation', handleOrientation);
-                }
+                if (window.DeviceOrientationEvent) window.addEventListener('deviceorientation', handleOrientation);
             } catch (e) { alert("Camera Access Denied"); }
         }
 
         function handleOrientation(e) {
             tiltX = e.gamma; tiltY = e.beta;
             const dot = document.getElementById('leveler-dot');
-            const grids = document.querySelectorAll('.grid');
             const moveX = Math.max(-50, Math.min(50, tiltX));
             const moveY = Math.max(-50, Math.min(50, tiltY - 70));
             dot.style.transform = `translate(calc(-50% + ${moveX}px), calc(-50% + ${moveY}px))`;
             const isAligned = Math.abs(tiltX) < 3 && Math.abs(tiltY - 70) < 3;
-            grids.forEach(g => g.classList.toggle('aligned', isAligned));
+            document.querySelectorAll('.grid').forEach(g => g.classList.toggle('aligned', isAligned));
         }
 
         function stopCamera() {
@@ -206,10 +199,6 @@
         function toggleOnionGuide() {
             isOnionEnabled = !isOnionEnabled;
             document.getElementById('guide-toggle').classList.toggle('btn-red', isOnionEnabled);
-            updateOnionGuide();
-        }
-
-        function updateOnionGuide() {
             const guide = document.getElementById('onion-guide');
             if (isOnionEnabled && capturedImages.length > 0) {
                 guide.src = capturedImages[capturedImages.length - 1];
@@ -225,13 +214,15 @@
             capturedImages.push(canvas.toDataURL('image/jpeg', 0.6));
             offsets.push({x: 0, y: 0});
             document.getElementById('counter').innerText = `${capturedImages.length} FRAMES`;
-            updateOnionGuide();
+            if (isOnionEnabled) document.getElementById('onion-guide').src = capturedImages[capturedImages.length - 1];
         }
 
-        // Viewer Logic
         function startViewer(isNewCapture) {
             if(capturedImages.length < 2) return;
             currentPos = 0; autoPlaySpeed = 1.0; isAutoPlaying = false;
+            const loopBtn = document.getElementById('btn-loop');
+            loopBtn.innerText = "LOOP: OFF"; loopBtn.classList.remove('btn-red');
+            document.getElementById('btn-speed').innerText = "×1.0";
             setMode('preview');
             document.getElementById('save-controls').style.display = isNewCapture ? 'flex' : 'none';
             document.getElementById('lib-nav-controls').style.display = isNewCapture ? 'none' : 'flex';
@@ -241,28 +232,11 @@
 
         function setMode(mode) {
             isEditScreen = (mode === 'edit');
-            isAutoPlaying = false;
+            if(isAutoPlaying) toggleLoopPlay(); // モード切替時は再生停止
             document.getElementById('preview-ui').style.display = isEditScreen ? 'none' : 'flex';
             document.getElementById('edit-ui').style.display = isEditScreen ? 'flex' : 'none';
             document.getElementById('onion-layer').style.display = isEditScreen ? 'block' : 'none';
-            toggleLibEditButtons(isEditScreen && hasUnsavedChanges);
             updateImage();
-        }
-
-        function toggleLibEditButtons(show) {
-            if (currentOpenId === null) return;
-            const container = document.getElementById('lib-nav-controls');
-            const leftBtn = document.getElementById('btn-viewer-left');
-            const rightBtn = document.getElementById('btn-viewer-right');
-            if (isEditScreen) {
-                container.style.display = show ? 'flex' : 'none';
-                leftBtn.innerText = "SAVE AS"; rightBtn.innerText = "UPDATE";
-                leftBtn.onclick = () => saveToLibrary(false); rightBtn.onclick = () => saveToLibrary(true);
-            } else {
-                container.style.display = 'flex';
-                leftBtn.innerText = "HOME"; rightBtn.innerText = "BACK";
-                leftBtn.onclick = () => confirmAndExit('home'); rightBtn.onclick = () => confirmAndExit('library');
-            }
         }
 
         function updateImage() {
@@ -302,16 +276,19 @@
             document.getElementById('btn-speed').innerText = `×${autoPlaySpeed.toFixed(1)}`;
         }
 
-        function stepFrame(dir) { isAutoPlaying = false; currentPos = Math.round(currentPos) + dir; updateImage(); }
-        function resetOffset() { const idx = (Math.floor(currentPos) % capturedImages.length + capturedImages.length) % capturedImages.length; offsets[idx] = {x:0, y:0}; markChanged(); updateImage(); }
-        function resetAllOffsets() { if(confirm("全てリセットしますか？")) { offsets = capturedImages.map(() => ({x:0, y:0})); markChanged(); updateImage(); } }
-        function markChanged() { hasUnsavedChanges = true; if(currentOpenId !== null && isEditScreen) toggleLibEditButtons(true); }
+        function stepFrame(dir) { 
+            if(isAutoPlaying) toggleLoopPlay(); // 送りボタン時は再生停止
+            currentPos = Math.round(currentPos) + dir; 
+            updateImage(); 
+        }
 
-        // Interaction
+        function resetOffset() { const idx = (Math.floor(currentPos) % capturedImages.length + capturedImages.length) % capturedImages.length; offsets[idx] = {x:0, y:0}; hasUnsavedChanges = true; updateImage(); }
+        function resetAllOffsets() { if(confirm("全てリセットしますか？")) { offsets = capturedImages.map(() => ({x:0, y:0})); hasUnsavedChanges = true; updateImage(); } }
+
         const vArea = document.getElementById('viewer-area');
         vArea.addEventListener('pointerdown', e => { 
             isDragging = true; lastX = e.clientX; lastY = e.clientY; velocity = 0; 
-            if(isEditScreen) { document.getElementById('current-layer').classList.add('dragging'); markChanged(); }
+            if(isEditScreen) { document.getElementById('current-layer').classList.add('dragging'); hasUnsavedChanges = true; }
             vArea.setPointerCapture(e.pointerId); 
         });
         vArea.addEventListener('pointermove', e => {
@@ -329,7 +306,6 @@
             requestAnimationFrame(renderLoop);
         }
 
-        // Library & Save
         function saveToLibrary(isUpdate) {
             const transaction = db.transaction(["photos"], "readwrite");
             const store = transaction.objectStore("photos");
@@ -379,11 +355,9 @@
         window.renameItem = (id, oldTitle) => {
             const newTitle = prompt("新しい作品名", oldTitle);
             if (!newTitle || newTitle === oldTitle) return;
-            const transaction = db.transaction(["photos"], "readwrite");
-            const store = transaction.objectStore("photos");
-            store.get(id).onsuccess = e => {
+            db.transaction(["photos"], "readwrite").objectStore("photos").get(id).onsuccess = e => {
                 const data = e.target.result; data.title = newTitle;
-                store.put(data).onsuccess = () => openLibrary();
+                db.transaction(["photos"], "readwrite").objectStore("photos").put(data).onsuccess = () => openLibrary();
             };
         };
 
@@ -391,7 +365,7 @@
 
         function confirmAndExit(target) {
             if (hasUnsavedChanges) {
-                const msg = "変更が保存されていません。\n\nこのまま移動すると位置調整データが破棄されます。保存する場合は「キャンセル」で戻り、EDIT MODE内の [SAVE AS] または [UPDATE] を押してください。\n\n（このまま破棄して移動しますか？）";
+                const msg = "変更が保存されていません。破棄して移動しますか？";
                 if (!confirm(msg)) return;
             }
             hasUnsavedChanges = false; if (target === 'home') nav('home'); else openLibrary();
