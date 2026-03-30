@@ -10,22 +10,37 @@
         .screen { display: none; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; flex-direction: column; align-items: center; }
         .screen.active { display: flex; }
         h1 { font-size: 4.5rem; font-weight: 900; letter-spacing: 0.2em; margin: 12vh 0 1rem 0.2em; }
+        
+        /* UI Components */
         .btn { background: #2c2c2e; color: #fff; padding: 18px; font-size: 1rem; border-radius: 14px; margin: 8px; cursor: pointer; width: 85%; max-width: 320px; text-align: center; border: none; }
         .btn-red { background: var(--accent-color) !important; font-weight: bold; }
         .mini-btn { background: #333; color: #fff; border: 1px solid #444; padding: 10px; border-radius: 10px; font-size: 0.75rem; flex: 1; text-align: center; cursor: pointer; }
         .nav-row { display: flex; width: 92%; justify-content: space-around; margin-top: auto; padding-bottom: calc(20px + env(safe-area-inset-bottom)); gap: 10px; }
+        
+        /* Viewer Area */
         #camera-container, #viewer-area { width: 100vw; height: 60vh; background: #000; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
         video, .viewer-layer, #onion-guide { width: 100%; height: 100%; object-fit: cover; position: absolute; }
         #current-layer { z-index: 10; touch-action: none; }
         #onion-layer { z-index: 5; opacity: 0.4; display: none; }
+        
+        /* Leveler & Grid */
         .grid { position: absolute; background: rgba(255,255,255,0.3); pointer-events: none; z-index: 15; }
         .grid.aligned { background: var(--safe-color); box-shadow: 0 0 8px var(--safe-color); }
         #leveler-dot { position: absolute; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #fff; z-index: 16; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+
+        /* Library List */
         #lib-list { width: 92%; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 10px 0; }
         .lib-item { background: var(--card-bg); padding: 10px; border-radius: 14px; display: flex; align-items: center; gap: 10px; }
         .thumb { width: 50px; height: 50px; border-radius: 8px; object-fit: cover; }
         .item-info { flex: 1; overflow: hidden; }
         .item-title { font-weight: bold; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        /* Progress Overlay */
+        #loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); z-index: 1000; flex-direction: column; align-items: center; justify-content: center; }
+        .progress-box { width: 80%; max-width: 300px; text-align: center; }
+        .progress-bar-bg { width: 100%; height: 8px; background: #333; border-radius: 4px; margin: 15px 0; overflow: hidden; }
+        #progress-bar-fill { width: 0%; height: 100%; background: var(--accent-color); transition: width 0.1s; }
+        #progress-text { font-family: monospace; font-size: 1.5rem; color: var(--accent-color); font-weight: bold; }
     </style>
 </head>
 <body>
@@ -39,7 +54,7 @@
     <div id="camera" class="screen">
         <div id="camera-container">
             <video id="video" autoplay playsinline muted></video>
-            <img id="onion-guide" style="display:none;">
+            <img id="onion-guide" style="display:none; opacity:0.3;">
             <div id="grid-v1" class="grid" style="width:1px; height:100%; left:33%;"></div>
             <div id="grid-v2" class="grid" style="width:1px; height:100%; left:66%;"></div>
             <div id="grid-h1" class="grid" style="width:100%; height:1px; top:33%;"></div>
@@ -90,8 +105,8 @@
                 <button class="mini-btn btn-red" onclick="saveToLibrary()">SAVE</button>
             </div>
             <div class="nav-row" id="lib-nav-controls" style="display:none;">
-                <button class="mini-btn" onclick="confirmAndExit('home')">HOME</button>
-                <button class="mini-btn" onclick="confirmAndExit('library')">BACK</button>
+                <button class="mini-btn" onclick="nav('home')">HOME</button>
+                <button class="mini-btn" onclick="nav('library')">BACK</button>
             </div>
         </div>
     </div>
@@ -105,6 +120,15 @@
         <div class="nav-row"><button class="btn" onclick="nav('home')" style="width:90%">HOME</button></div>
     </div>
 
+    <div id="loading-overlay">
+        <div class="progress-box">
+            <div id="loading-status" style="font-size: 0.9rem; margin-bottom: 10px;">GENERATING GIF...</div>
+            <div id="progress-text">0%</div>
+            <div class="progress-bar-bg"><div id="progress-bar-fill"></div></div>
+            <div style="font-size: 0.7rem; color: #888;">処理が終わるまで閉じないでください</div>
+        </div>
+    </div>
+
     <canvas id="buffer" style="display:none;"></canvas>
     <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js"></script>
 
@@ -114,30 +138,22 @@
         let autoPlaySpeed = 1.0, currentPos = 0, lastX = 0, lastY = 0, velocity = 0;
         let tiltX = 0, tiltY = 0;
 
-        // DB 接続
+        // Database
         const request = indexedDB.open("TouchAppDB", 1);
         request.onupgradeneeded = e => { e.target.result.createObjectStore("photos", { keyPath: "id", autoIncrement: true }); };
         request.onsuccess = e => { db = e.target.result; };
 
-        // ナビゲーション関数の強化
+        // Navigation
         function nav(id) {
-            // 全画面からアクティブを外す
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            // ループ再生と速度を強制停止
-            isAutoPlaying = false; 
-            velocity = 0;
-            const loopBtn = document.getElementById('btn-loop');
-            if(loopBtn) { loopBtn.innerText = "LOOP: OFF"; loopBtn.classList.remove('btn-red'); }
-            
-            // ターゲット画面を表示
+            isAutoPlaying = false; velocity = 0;
+            const lb = document.getElementById('btn-loop');
+            if(lb) { lb.innerText = "LOOP: OFF"; lb.classList.remove('btn-red'); }
             document.getElementById(id).classList.add('active');
-            
-            // 画面ごとの初期化/終了処理
             if(id === 'camera') initCamera(); else stopCamera();
-            if(id !== 'viewer') { currentOpenId = null; }
         }
 
-        // カメラ制御
+        // Camera & Import
         async function initCamera() {
             capturedImages = []; offsets = []; 
             document.getElementById('counter').innerText = `0 FRAMES`;
@@ -145,7 +161,7 @@
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 1280, height: 1280 } });
                 document.getElementById('video').srcObject = stream;
                 window.addEventListener('deviceorientation', handleOrientation);
-            } catch (e) { console.error("Camera error"); }
+            } catch (e) { alert("Camera error"); }
         }
 
         function stopCamera() {
@@ -173,10 +189,7 @@
             capturedImages.push(data);
             offsets.push({x:0, y:0});
             document.getElementById('counter').innerText = `${capturedImages.length} FRAMES`;
-            if(isOnionEnabled) { 
-                const og = document.getElementById('onion-guide');
-                og.src = data; og.style.display = 'block';
-            }
+            if(isOnionEnabled) { const og = document.getElementById('onion-guide'); og.src = data; og.style.display = 'block'; }
         }
 
         async function importPhotos(input) {
@@ -205,7 +218,7 @@
             });
         }
 
-        // ビューワー制御
+        // Viewer
         function startViewer(isNew) {
             if(capturedImages.length < 2) return;
             currentPos = 0; isAutoPlaying = false;
@@ -217,8 +230,7 @@
         }
 
         function setMode(mode) {
-            isEditScreen = (mode === 'edit');
-            isAutoPlaying = false;
+            isEditScreen = (mode === 'edit'); isAutoPlaying = false;
             document.getElementById('preview-ui').style.display = isEditScreen ? 'none' : 'flex';
             document.getElementById('edit-ui').style.display = isEditScreen ? 'flex' : 'none';
             document.getElementById('onion-layer').style.display = isEditScreen ? 'block' : 'none';
@@ -246,16 +258,9 @@
             if(isAutoPlaying) animate();
         }
 
-        function animate() {
-            if(!isAutoPlaying || isEditScreen) return;
-            currentPos += (capturedImages.length / 180) * autoPlaySpeed;
-            updateImage();
-            requestAnimationFrame(animate);
-        }
-
+        function animate() { if(isAutoPlaying && !isEditScreen) { currentPos += (capturedImages.length / 180); updateImage(); requestAnimationFrame(animate); } }
         function stepFrame(dir) { isAutoPlaying = false; currentPos = Math.round(currentPos) + dir; updateImage(); }
 
-        // インタラクション
         const vArea = document.getElementById('viewer-area');
         vArea.onpointerdown = e => { isDragging = true; lastX = e.clientX; lastY = e.clientY; velocity = 0; vArea.setPointerCapture(e.pointerId); };
         vArea.onpointermove = e => {
@@ -274,13 +279,11 @@
             requestAnimationFrame(renderLoop);
         }
 
-        // ライブラリ操作
+        // Library & Share
         function saveToLibrary() {
-            const title = prompt("作品名", new Date().toLocaleString());
-            if(!title) return;
+            const title = prompt("作品名", new Date().toLocaleString()); if(!title) return;
             const tx = db.transaction(["photos"], "readwrite");
-            tx.objectStore("photos").add({ title, data: capturedImages, offsets, thumb: capturedImages[0], timestamp: Date.now() })
-            .onsuccess = () => nav('home');
+            tx.objectStore("photos").add({ title, data: capturedImages, offsets, thumb: capturedImages[0], timestamp: Date.now() }).onsuccess = () => nav('home');
         }
 
         function openLibrary() {
@@ -290,8 +293,7 @@
                 if(cursor) {
                     const item = cursor.value;
                     const div = document.createElement('div'); div.className = 'lib-item';
-                    div.innerHTML = `<img src="${item.thumb}" class="thumb">
-                        <div class="item-info"><span class="item-title">${item.title}</span></div>
+                    div.innerHTML = `<img src="${item.thumb}" class="thumb"><div class="item-info"><span class="item-title">${item.title}</span></div>
                         <button class="mini-btn" onclick="viewItem(${item.id})">▶</button>
                         <button class="mini-btn" onclick="exportTouchData(${item.id})">📤</button>
                         <button class="mini-btn" style="color:#666;" onclick="deleteItem(${item.id})">🗑</button>`;
@@ -301,55 +303,46 @@
             nav('library');
         }
 
-        function viewItem(id) {
-            db.transaction(["photos"], "readonly").objectStore("photos").get(id).onsuccess = e => {
-                const item = e.target.result; capturedImages = item.data; offsets = item.offsets;
-                currentOpenId = id; startViewer(false);
-            };
-        }
+        window.viewItem = id => { db.transaction(["photos"], "readonly").objectStore("photos").get(id).onsuccess = e => { const item = e.target.result; capturedImages = item.data; offsets = item.offsets; currentOpenId = id; startViewer(false); }; };
+        window.deleteItem = id => { if(confirm("削除しますか？")) db.transaction(["photos"], "readwrite").objectStore("photos").delete(id).onsuccess = () => openLibrary(); };
 
         function exportTouchData(id) {
             db.transaction(["photos"], "readonly").objectStore("photos").get(id).onsuccess = e => {
-                const item = e.target.result;
-                const blob = new Blob([JSON.stringify(item)], {type: "application/json"});
+                const item = e.target.result; const blob = new Blob([JSON.stringify(item)], {type: "application/json"});
                 const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${item.title}.touch`; a.click();
             };
         }
 
         async function importTouchData(input) {
             const file = input.files[0]; if(!file) return;
-            const text = await file.text();
-            const item = JSON.parse(text); delete item.id;
+            const text = await file.text(); const item = JSON.parse(text); delete item.id;
             db.transaction(["photos"], "readwrite").objectStore("photos").add(item).onsuccess = () => openLibrary();
         }
 
+        // GIF Generation with Progress
         function exportToGif() {
-            if(capturedImages.length > 50) { if(!confirm("枚数が多いため処理に時間がかかります。続行しますか？")) return; }
-            const gif = new GIF({ workers: 2, quality: 10, width: 480, height: 480, workerScript: 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js' });
-            const canvas = document.getElementById('buffer');
-            const ctx = canvas.getContext('2d');
-            canvas.width = 480; canvas.height = 480;
-
-            let loadedCount = 0;
+            const overlay = document.getElementById('loading-overlay'); const bar = document.getElementById('progress-bar-fill'); const text = document.getElementById('progress-text');
+            overlay.style.display = 'flex'; bar.style.width = '0%'; text.innerText = '0%';
+            const gif = new GIF({ workers: 2, quality: 10, width: 320, height: 320, workerScript: 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js' });
+            const canvas = document.getElementById('buffer'); const ctx = canvas.getContext('2d'); canvas.width = 320; canvas.height = 320;
+            let loaded = 0; const total = capturedImages.length;
             capturedImages.forEach((imgSrc, i) => {
                 const img = new Image();
                 img.onload = () => {
-                    ctx.fillStyle = "#000"; ctx.fillRect(0,0,480,480);
-                    ctx.drawImage(img, offsets[i].x/2.66, offsets[i].y/2.66, 480, 480);
-                    gif.addFrame(ctx, {copy: true, delay: 60});
-                    loadedCount++;
-                    if(loadedCount === capturedImages.length) {
-                        gif.on('finished', blob => { window.open(URL.createObjectURL(blob)); alert("GIF完成！別タブで開きました。保存してください。"); });
+                    ctx.fillStyle = "#000"; ctx.fillRect(0,0,320,320); ctx.drawImage(img, offsets[i].x/4, offsets[i].y/4, 320, 320);
+                    gif.addFrame(ctx, {copy: true, delay: 60}); loaded++;
+                    const p = Math.round((loaded / total) * 50); bar.style.width = p + "%"; text.innerText = p + "%";
+                    if (loaded === total) {
+                        gif.on('progress', (p) => { const prog = 50 + Math.round(p * 50); bar.style.width = prog + "%"; text.innerText = prog + "%"; });
+                        gif.on('finished', blob => { overlay.style.display = 'none'; const url = URL.createObjectURL(blob); window.open(url, '_blank'); alert("完成！保存してください。"); });
                         gif.render();
                     }
-                };
-                img.src = imgSrc;
+                }; img.src = imgSrc;
             });
         }
 
-        function deleteItem(id) { if(confirm("削除しますか？")) db.transaction(["photos"], "readwrite").objectStore("photos").delete(id).onsuccess = () => openLibrary(); }
-        function confirmAndExit(target) { nav(target); }
-        function toggleOnionGuide() { isOnionEnabled = !isOnionEnabled; document.getElementById('guide-btn').classList.toggle('btn-red', isOnionEnabled); }
+        // Utils
+        function toggleOnionGuide() { isOnionEnabled = !isOnionEnabled; document.getElementById('guide-btn').classList.toggle('btn-red', isOnionEnabled); if(!isOnionEnabled) document.getElementById('onion-guide').style.display='none'; }
         function resetOffset() { offsets[getIdx()] = {x:0, y:0}; updateImage(); }
         function resetAllOffsets() { if(confirm("全リセット？")) { offsets = offsets.map(()=>({x:0,y:0})); updateImage(); } }
         function getIdx() { return (Math.floor(currentPos) % capturedImages.length + capturedImages.length) % capturedImages.length; }
