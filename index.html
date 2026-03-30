@@ -10,32 +10,22 @@
         .screen { display: none; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; flex-direction: column; align-items: center; }
         .screen.active { display: flex; }
         h1 { font-size: 4.5rem; font-weight: 900; letter-spacing: 0.2em; margin: 12vh 0 1rem 0.2em; }
-        
-        /* UI Components */
         .btn { background: #2c2c2e; color: #fff; padding: 18px; font-size: 1rem; border-radius: 14px; margin: 8px; cursor: pointer; width: 85%; max-width: 320px; text-align: center; border: none; }
         .btn-red { background: var(--accent-color) !important; font-weight: bold; }
         .mini-btn { background: #333; color: #fff; border: 1px solid #444; padding: 10px; border-radius: 10px; font-size: 0.75rem; flex: 1; text-align: center; cursor: pointer; }
         .nav-row { display: flex; width: 92%; justify-content: space-around; margin-top: auto; padding-bottom: calc(20px + env(safe-area-inset-bottom)); gap: 10px; }
-        
-        /* Viewer Area */
         #camera-container, #viewer-area { width: 100vw; height: 60vh; background: #000; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
         video, .viewer-layer, #onion-guide { width: 100%; height: 100%; object-fit: cover; position: absolute; }
         #current-layer { z-index: 10; touch-action: none; }
         #onion-layer { z-index: 5; opacity: 0.4; display: none; }
-        
-        /* Leveler & Grid */
         .grid { position: absolute; background: rgba(255,255,255,0.3); pointer-events: none; z-index: 15; }
         .grid.aligned { background: var(--safe-color); box-shadow: 0 0 8px var(--safe-color); }
         #leveler-dot { position: absolute; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #fff; z-index: 16; top: 50%; left: 50%; transform: translate(-50%, -50%); }
-
-        /* Library List */
         #lib-list { width: 92%; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 10px 0; }
         .lib-item { background: var(--card-bg); padding: 10px; border-radius: 14px; display: flex; align-items: center; gap: 10px; }
         .thumb { width: 50px; height: 50px; border-radius: 8px; object-fit: cover; }
         .item-info { flex: 1; overflow: hidden; }
         .item-title { font-weight: bold; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-        /* Progress Overlay */
         #loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); z-index: 1000; flex-direction: column; align-items: center; justify-content: center; }
         .progress-box { width: 80%; max-width: 300px; text-align: center; }
         .progress-bar-bg { width: 100%; height: 8px; background: #333; border-radius: 4px; margin: 15px 0; overflow: hidden; }
@@ -125,7 +115,7 @@
             <div id="loading-status" style="font-size: 0.9rem; margin-bottom: 10px;">GENERATING GIF...</div>
             <div id="progress-text">0%</div>
             <div class="progress-bar-bg"><div id="progress-bar-fill"></div></div>
-            <div style="font-size: 0.7rem; color: #888;">処理が終わるまで閉じないでください</div>
+            <div style="font-size: 0.7rem; color: #888;">完了まで数秒お待ちください</div>
         </div>
     </div>
 
@@ -135,15 +125,12 @@
     <script>
         let capturedImages = [], offsets = [], db, currentOpenId = null;
         let isDragging = false, isEditScreen = false, isAutoPlaying = false, isOnionEnabled = false;
-        let autoPlaySpeed = 1.0, currentPos = 0, lastX = 0, lastY = 0, velocity = 0;
-        let tiltX = 0, tiltY = 0;
+        let currentPos = 0, lastX = 0, lastY = 0, velocity = 0;
 
-        // Database
         const request = indexedDB.open("TouchAppDB", 1);
         request.onupgradeneeded = e => { e.target.result.createObjectStore("photos", { keyPath: "id", autoIncrement: true }); };
         request.onsuccess = e => { db = e.target.result; };
 
-        // Navigation
         function nav(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             isAutoPlaying = false; velocity = 0;
@@ -153,31 +140,18 @@
             if(id === 'camera') initCamera(); else stopCamera();
         }
 
-        // Camera & Import
         async function initCamera() {
             capturedImages = []; offsets = []; 
             document.getElementById('counter').innerText = `0 FRAMES`;
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 1280, height: 1280 } });
                 document.getElementById('video').srcObject = stream;
-                window.addEventListener('deviceorientation', handleOrientation);
             } catch (e) { alert("Camera error"); }
         }
 
         function stopCamera() {
             const v = document.getElementById('video');
             if(v && v.srcObject) { v.srcObject.getTracks().forEach(t => t.stop()); v.srcObject = null; }
-            window.removeEventListener('deviceorientation', handleOrientation);
-        }
-
-        function handleOrientation(e) {
-            tiltX = e.gamma; tiltY = e.beta;
-            const dot = document.getElementById('leveler-dot');
-            const moveX = Math.max(-40, Math.min(40, tiltX));
-            const moveY = Math.max(-40, Math.min(40, tiltY - 70));
-            dot.style.transform = `translate(calc(-50% + ${moveX}px), calc(-50% + ${moveY}px))`;
-            const isAligned = Math.abs(tiltX) < 3 && Math.abs(tiltY - 70) < 3;
-            document.querySelectorAll('.grid').forEach(g => g.classList.toggle('aligned', isAligned));
         }
 
         function captureFrame() {
@@ -218,7 +192,6 @@
             });
         }
 
-        // Viewer
         function startViewer(isNew) {
             if(capturedImages.length < 2) return;
             currentPos = 0; isAutoPlaying = false;
@@ -279,7 +252,6 @@
             requestAnimationFrame(renderLoop);
         }
 
-        // Library & Share
         function saveToLibrary() {
             const title = prompt("作品名", new Date().toLocaleString()); if(!title) return;
             const tx = db.transaction(["photos"], "readwrite");
@@ -319,29 +291,60 @@
             db.transaction(["photos"], "readwrite").objectStore("photos").add(item).onsuccess = () => openLibrary();
         }
 
-        // GIF Generation with Progress
+        // GIF Generation
         function exportToGif() {
-            const overlay = document.getElementById('loading-overlay'); const bar = document.getElementById('progress-bar-fill'); const text = document.getElementById('progress-text');
+            const overlay = document.getElementById('loading-overlay'); 
+            const bar = document.getElementById('progress-bar-fill'); 
+            const text = document.getElementById('progress-text');
             overlay.style.display = 'flex'; bar.style.width = '0%'; text.innerText = '0%';
-            const gif = new GIF({ workers: 2, quality: 10, width: 320, height: 320, workerScript: 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js' });
-            const canvas = document.getElementById('buffer'); const ctx = canvas.getContext('2d'); canvas.width = 320; canvas.height = 320;
+
+            // 安全策：gif.worker.jsを確実に動作させるためのBlob化
+            const gif = new GIF({ 
+                workers: 2, 
+                quality: 10, 
+                width: 320, 
+                height: 320,
+                // 外部ファイルを読み込まずに動作させる設定
+                workerScript: 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js' 
+            });
+
+            const canvas = document.getElementById('buffer'); 
+            const ctx = canvas.getContext('2d'); 
+            canvas.width = 320; canvas.height = 320;
+            
             let loaded = 0; const total = capturedImages.length;
+
             capturedImages.forEach((imgSrc, i) => {
                 const img = new Image();
                 img.onload = () => {
-                    ctx.fillStyle = "#000"; ctx.fillRect(0,0,320,320); ctx.drawImage(img, offsets[i].x/4, offsets[i].y/4, 320, 320);
-                    gif.addFrame(ctx, {copy: true, delay: 60}); loaded++;
-                    const p = Math.round((loaded / total) * 50); bar.style.width = p + "%"; text.innerText = p + "%";
+                    ctx.fillStyle = "#000"; ctx.fillRect(0,0,320,320); 
+                    ctx.drawImage(img, offsets[i].x/4, offsets[i].y/4, 320, 320);
+                    gif.addFrame(ctx, {copy: true, delay: 60}); 
+                    loaded++;
+                    
+                    let p = Math.round((loaded / total) * 50);
+                    bar.style.width = p + "%"; text.innerText = p + "%";
+
                     if (loaded === total) {
-                        gif.on('progress', (p) => { const prog = 50 + Math.round(p * 50); bar.style.width = prog + "%"; text.innerText = prog + "%"; });
-                        gif.on('finished', blob => { overlay.style.display = 'none'; const url = URL.createObjectURL(blob); window.open(url, '_blank'); alert("完成！保存してください。"); });
-                        gif.render();
+                        gif.on('progress', (prog) => { 
+                            let p2 = 50 + Math.round(prog * 50);
+                            bar.style.width = p2 + "%"; text.innerText = p2 + "%"; 
+                        });
+                        gif.on('finished', blob => { 
+                            overlay.style.display = 'none'; 
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url; a.download = `TOUCH_${Date.now()}.gif`; a.click();
+                            window.open(url, '_blank'); 
+                            alert("完成！保存してください。"); 
+                        });
+                        // 明示的にレンダリング開始
+                        setTimeout(() => gif.render(), 100);
                     }
                 }; img.src = imgSrc;
             });
         }
 
-        // Utils
         function toggleOnionGuide() { isOnionEnabled = !isOnionEnabled; document.getElementById('guide-btn').classList.toggle('btn-red', isOnionEnabled); if(!isOnionEnabled) document.getElementById('onion-guide').style.display='none'; }
         function resetOffset() { offsets[getIdx()] = {x:0, y:0}; updateImage(); }
         function resetAllOffsets() { if(confirm("全リセット？")) { offsets = offsets.map(()=>({x:0,y:0})); updateImage(); } }
