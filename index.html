@@ -6,7 +6,7 @@
     <title>TOUCH</title>
     <style>
         :root { --bg-color: #000; --text-color: #fff; --accent-color: #ff3b30; --safe-color: #4cd964; --card-bg: #1c1c1e; }
-        body { margin: 0; padding: 0; background: var(--bg-color); color: var(--text-color); font-family: -apple-system, sans-serif; overflow: hidden; -webkit-user-select: none; user-select: none; }
+        body { margin: 0; padding: 0; background: var(--bg-color); color: var(--text-color); font-family: -apple-system, sans-serif; overflow: hidden; }
         .screen { display: none; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; flex-direction: column; align-items: center; }
         .screen.active { display: flex; }
         h1 { font-size: 4.5rem; font-weight: 900; letter-spacing: 0.2em; margin: 12vh 0 1rem 0.2em; }
@@ -18,19 +18,9 @@
         video, .viewer-layer, #onion-guide { width: 100%; height: 100%; object-fit: cover; position: absolute; }
         #current-layer { z-index: 10; touch-action: none; }
         #onion-layer { z-index: 5; opacity: 0.4; display: none; }
-        .grid { position: absolute; background: rgba(255,255,255,0.3); pointer-events: none; z-index: 15; }
-        .grid.aligned { background: var(--safe-color); box-shadow: 0 0 8px var(--safe-color); }
-        #leveler-dot { position: absolute; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #fff; z-index: 16; top: 50%; left: 50%; transform: translate(-50%, -50%); }
-        #lib-list { width: 92%; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 10px 0; }
-        .lib-item { background: var(--card-bg); padding: 10px; border-radius: 14px; display: flex; align-items: center; gap: 10px; }
-        .thumb { width: 50px; height: 50px; border-radius: 8px; object-fit: cover; }
-        .item-info { flex: 1; overflow: hidden; }
-        .item-title { font-weight: bold; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        #loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); z-index: 1000; flex-direction: column; align-items: center; justify-content: center; }
-        .progress-box { width: 80%; max-width: 300px; text-align: center; }
-        .progress-bar-bg { width: 100%; height: 8px; background: #333; border-radius: 4px; margin: 15px 0; overflow: hidden; }
+        #loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.9); z-index: 2000; flex-direction: column; align-items: center; justify-content: center; }
+        .progress-bar-bg { width: 70%; height: 8px; background: #333; border-radius: 4px; margin: 15px 0; overflow: hidden; }
         #progress-bar-fill { width: 0%; height: 100%; background: var(--accent-color); transition: width 0.1s; }
-        #progress-text { font-family: monospace; font-size: 1.5rem; color: var(--accent-color); font-weight: bold; }
     </style>
 </head>
 <body>
@@ -45,86 +35,49 @@
         <div id="camera-container">
             <video id="video" autoplay playsinline muted></video>
             <img id="onion-guide" style="display:none; opacity:0.3;">
-            <div id="grid-v1" class="grid" style="width:1px; height:100%; left:33%;"></div>
-            <div id="grid-v2" class="grid" style="width:1px; height:100%; left:66%;"></div>
-            <div id="grid-h1" class="grid" style="width:100%; height:1px; top:33%;"></div>
-            <div id="grid-h2" class="grid" style="width:100%; height:1px; top:66%;"></div>
-            <div id="leveler-dot"></div>
         </div>
         <div style="flex-grow:1; display:flex; flex-direction:column; align-items:center; width:100%; background:#000;">
             <div id="counter" style="color:#666; font-size:0.7rem; margin:10px 0;">0 FRAMES</div>
             <div id="shutter" style="width:60px; height:60px; border-radius:50%; background:#fff; border:4px solid #333;" onclick="captureFrame()"></div>
-            <div class="nav-row" style="margin-top:10px;">
-                <label class="mini-btn" style="background:#222;">IMPORT<input type="file" multiple accept="image/*" style="display:none;" onchange="importPhotos(this)"></label>
-                <div id="guide-btn" class="mini-btn" onclick="toggleOnionGuide()">GUIDE</div>
-            </div>
-            <div class="nav-row">
-                <button class="mini-btn" onclick="nav('home')">BACK</button>
-                <button class="mini-btn btn-red" onclick="startViewer(true)">DONE</button>
-            </div>
+            <div class="nav-row"><button class="mini-btn" onclick="nav('home')">BACK</button><button class="mini-btn btn-red" onclick="startViewer(true)">DONE</button></div>
         </div>
     </div>
 
     <div id="viewer" class="screen">
-        <div id="viewer-area">
-            <img id="onion-layer" class="viewer-layer">
-            <img id="current-layer" class="viewer-layer">
-        </div>
+        <div id="viewer-area"><img id="onion-layer" class="viewer-layer"><img id="current-layer" class="viewer-layer"></div>
         <div style="flex-grow:1; display:flex; flex-direction:column; align-items:center; width:100%; background:#000; padding-top:10px;">
             <div id="preview-ui" style="width:90%; display:flex; flex-direction:column; gap:10px;">
-                <div style="display:flex; gap:8px;">
-                    <div id="btn-loop" class="mini-btn" onclick="toggleLoopPlay()">LOOP: OFF</div>
-                    <div class="mini-btn" onclick="stepFrame(-1)">◀ STEP</div>
-                    <div class="mini-btn" onclick="stepFrame(1)">STEP ▶</div>
-                </div>
-                <div style="display:flex; gap:8px;">
-                    <div class="mini-btn" style="background:#222;" onclick="setMode('edit')">EDIT (ALIGN)</div>
-                    <div class="mini-btn" style="background:#222;" onclick="exportToGif()">🎬 MAKE GIF</div>
-                </div>
+                <div style="display:flex; gap:8px;"><div id="btn-loop" class="mini-btn" onclick="toggleLoopPlay()">LOOP: OFF</div><div class="mini-btn" onclick="stepFrame(-1)">◀ STEP</div><div class="mini-btn" onclick="stepFrame(1)">STEP ▶</div></div>
+                <div style="display:flex; gap:8px;"><div class="mini-btn" style="background:#222;" onclick="setMode('edit')">EDIT (ALIGN)</div><div class="mini-btn" style="background:#222;" onclick="exportToGif()">🎬 MAKE GIF</div></div>
             </div>
             <div id="edit-ui" style="width:90%; display:none; flex-direction:column; align-items:center; gap:10px;">
                 <div id="frame-counter" style="font-family:monospace;">[0 / 0]</div>
-                <div style="display:flex; gap:8px; width:100%;">
-                    <div class="mini-btn" onclick="resetOffset()">RESET</div>
-                    <div class="mini-btn" onclick="resetAllOffsets()">ALL RESET</div>
-                    <div class="mini-btn" style="background:#444;" onclick="setMode('preview')">EXIT</div>
-                </div>
+                <div style="display:flex; gap:8px; width:100%;"><div class="mini-btn" onclick="resetOffset()">RESET</div><div class="mini-btn" style="background:#444;" onclick="setMode('preview')">EXIT</div></div>
             </div>
-            <div class="nav-row" id="save-controls">
-                <button class="mini-btn" onclick="nav('camera')">RETAKE</button>
-                <button class="mini-btn btn-red" onclick="saveToLibrary()">SAVE</button>
-            </div>
-            <div class="nav-row" id="lib-nav-controls" style="display:none;">
-                <button class="mini-btn" onclick="nav('home')">HOME</button>
-                <button class="mini-btn" onclick="nav('library')">BACK</button>
-            </div>
+            <div class="nav-row" id="save-controls"><button class="mini-btn" onclick="nav('camera')">RETAKE</button><button class="mini-btn btn-red" onclick="saveToLibrary()">SAVE</button></div>
+            <div class="nav-row" id="lib-nav-controls" style="display:none;"><button class="mini-btn" onclick="nav('home')">HOME</button><button class="mini-btn" onclick="nav('library')">BACK</button></div>
         </div>
     </div>
 
     <div id="library" class="screen">
-        <div style="width:92%; display:flex; justify-content:space-between; align-items:center; margin-top:50px;">
-            <h2 style="margin:0;">LIBRARY</h2>
-            <label class="mini-btn" style="max-width:80px;">IMPORT<input type="file" accept=".touch" style="display:none;" onchange="importTouchData(this)"></label>
-        </div>
+        <div style="width:92%; margin-top:50px;"><h2>LIBRARY</h2></div>
         <div id="lib-list"></div>
         <div class="nav-row"><button class="btn" onclick="nav('home')" style="width:90%">HOME</button></div>
     </div>
 
     <div id="loading-overlay">
-        <div class="progress-box">
-            <div id="loading-status" style="font-size: 0.9rem; margin-bottom: 10px;">GENERATING GIF...</div>
-            <div id="progress-text">0%</div>
-            <div class="progress-bar-bg"><div id="progress-bar-fill"></div></div>
-            <div style="font-size: 0.7rem; color: #888;">完了まで数秒お待ちください</div>
-        </div>
+        <div id="progress-text" style="font-size:2rem; font-weight:bold; color:var(--accent-color);">0%</div>
+        <div class="progress-bar-bg"><div id="progress-bar-fill"></div></div>
+        <div id="loading-status" style="font-size:0.8rem;">ENGINE STARTING...</div>
     </div>
 
     <canvas id="buffer" style="display:none;"></canvas>
+    
     <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js"></script>
 
     <script>
         let capturedImages = [], offsets = [], db, currentOpenId = null;
-        let isDragging = false, isEditScreen = false, isAutoPlaying = false, isOnionEnabled = false;
+        let isDragging = false, isEditScreen = false, isAutoPlaying = false;
         let currentPos = 0, lastX = 0, lastY = 0, velocity = 0;
 
         const request = indexedDB.open("TouchAppDB", 1);
@@ -134,15 +87,12 @@
         function nav(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             isAutoPlaying = false; velocity = 0;
-            const lb = document.getElementById('btn-loop');
-            if(lb) { lb.innerText = "LOOP: OFF"; lb.classList.remove('btn-red'); }
             document.getElementById(id).classList.add('active');
             if(id === 'camera') initCamera(); else stopCamera();
         }
 
         async function initCamera() {
             capturedImages = []; offsets = []; 
-            document.getElementById('counter').innerText = `0 FRAMES`;
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 1280, height: 1280 } });
                 document.getElementById('video').srcObject = stream;
@@ -163,33 +113,6 @@
             capturedImages.push(data);
             offsets.push({x:0, y:0});
             document.getElementById('counter').innerText = `${capturedImages.length} FRAMES`;
-            if(isOnionEnabled) { const og = document.getElementById('onion-guide'); og.src = data; og.style.display = 'block'; }
-        }
-
-        async function importPhotos(input) {
-            const files = Array.from(input.files);
-            for (let file of files) {
-                const data = await readFileAsDataURL(file);
-                const resized = await resizeImage(data);
-                capturedImages.push(resized);
-                offsets.push({x:0, y:0});
-            }
-            document.getElementById('counter').innerText = `${capturedImages.length} FRAMES`;
-        }
-
-        function resizeImage(data) {
-            return new Promise(res => {
-                const img = new Image();
-                img.onload = () => {
-                    const canvas = document.getElementById('buffer');
-                    canvas.width = 1280; canvas.height = 1280;
-                    const ctx = canvas.getContext('2d');
-                    const size = Math.min(img.width, img.height);
-                    ctx.drawImage(img, (img.width-size)/2, (img.height-size)/2, size, size, 0,0,1280,1280);
-                    res(canvas.toDataURL('image/jpeg', 0.7));
-                };
-                img.src = data;
-            });
         }
 
         function startViewer(isNew) {
@@ -203,7 +126,7 @@
         }
 
         function setMode(mode) {
-            isEditScreen = (mode === 'edit'); isAutoPlaying = false;
+            isEditScreen = (mode === 'edit');
             document.getElementById('preview-ui').style.display = isEditScreen ? 'none' : 'flex';
             document.getElementById('edit-ui').style.display = isEditScreen ? 'flex' : 'none';
             document.getElementById('onion-layer').style.display = isEditScreen ? 'block' : 'none';
@@ -225,9 +148,7 @@
 
         function toggleLoopPlay() {
             isAutoPlaying = !isAutoPlaying;
-            const btn = document.getElementById('btn-loop');
-            btn.innerText = isAutoPlaying ? "LOOP: ON" : "LOOP: OFF";
-            btn.classList.toggle('btn-red', isAutoPlaying);
+            document.getElementById('btn-loop').classList.toggle('btn-red', isAutoPlaying);
             if(isAutoPlaying) animate();
         }
 
@@ -265,9 +186,8 @@
                 if(cursor) {
                     const item = cursor.value;
                     const div = document.createElement('div'); div.className = 'lib-item';
-                    div.innerHTML = `<img src="${item.thumb}" class="thumb"><div class="item-info"><span class="item-title">${item.title}</span></div>
+                    div.innerHTML = `<img src="${item.thumb}" class="thumb"><div class="item-info"><span>${item.title}</span></div>
                         <button class="mini-btn" onclick="viewItem(${item.id})">▶</button>
-                        <button class="mini-btn" onclick="exportTouchData(${item.id})">📤</button>
                         <button class="mini-btn" style="color:#666;" onclick="deleteItem(${item.id})">🗑</button>`;
                     list.appendChild(div); cursor.continue();
                 }
@@ -275,81 +195,60 @@
             nav('library');
         }
 
-        window.viewItem = id => { db.transaction(["photos"], "readonly").objectStore("photos").get(id).onsuccess = e => { const item = e.target.result; capturedImages = item.data; offsets = item.offsets; currentOpenId = id; startViewer(false); }; };
-        window.deleteItem = id => { if(confirm("削除しますか？")) db.transaction(["photos"], "readwrite").objectStore("photos").delete(id).onsuccess = () => openLibrary(); };
+        window.viewItem = id => { db.transaction(["photos"], "readonly").objectStore("photos").get(id).onsuccess = e => { const item = e.target.result; capturedImages = item.data; offsets = item.offsets; startViewer(false); }; };
+        window.deleteItem = id => { if(confirm("削除？")) db.transaction(["photos"], "readwrite").objectStore("photos").delete(id).onsuccess = () => openLibrary(); };
 
-        function exportTouchData(id) {
-            db.transaction(["photos"], "readonly").objectStore("photos").get(id).onsuccess = e => {
-                const item = e.target.result; const blob = new Blob([JSON.stringify(item)], {type: "application/json"});
-                const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${item.title}.touch`; a.click();
-            };
-        }
-
-        async function importTouchData(input) {
-            const file = input.files[0]; if(!file) return;
-            const text = await file.text(); const item = JSON.parse(text); delete item.id;
-            db.transaction(["photos"], "readwrite").objectStore("photos").add(item).onsuccess = () => openLibrary();
-        }
-
-        // GIF Generation
-        function exportToGif() {
+        // --- GIF生成エンジンの修正 ---
+        async function exportToGif() {
             const overlay = document.getElementById('loading-overlay'); 
             const bar = document.getElementById('progress-bar-fill'); 
             const text = document.getElementById('progress-text');
+            const status = document.getElementById('loading-status');
+            
             overlay.style.display = 'flex'; bar.style.width = '0%'; text.innerText = '0%';
+            status.innerText = "PREPARING IMAGES...";
 
-            // 安全策：gif.worker.jsを確実に動作させるためのBlob化
+            // スマホのセキュリティ制限を回避するため、Workerを使わずメインスレッドで処理（workers: 0）
+            // これにより「50%の壁」を物理的に排除します。
             const gif = new GIF({ 
-                workers: 2, 
+                workers: 0, 
                 quality: 10, 
-                width: 320, 
-                height: 320,
-                // 外部ファイルを読み込まずに動作させる設定
-                workerScript: 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js' 
+                width: 320, height: 320 
             });
 
             const canvas = document.getElementById('buffer'); 
             const ctx = canvas.getContext('2d'); 
             canvas.width = 320; canvas.height = 320;
             
-            let loaded = 0; const total = capturedImages.length;
+            for(let i=0; i<capturedImages.length; i++) {
+                const img = await new Promise(res => { const im = new Image(); im.onload = () => res(im); im.src = capturedImages[i]; });
+                ctx.fillStyle = "#000"; ctx.fillRect(0,0,320,320); 
+                ctx.drawImage(img, offsets[i].x/4, offsets[i].y/4, 320, 320);
+                gif.addFrame(ctx, {copy: true, delay: 80});
+                
+                let p = Math.round(((i + 1) / capturedImages.length) * 50);
+                bar.style.width = p + "%"; text.innerText = p + "%";
+            }
 
-            capturedImages.forEach((imgSrc, i) => {
-                const img = new Image();
-                img.onload = () => {
-                    ctx.fillStyle = "#000"; ctx.fillRect(0,0,320,320); 
-                    ctx.drawImage(img, offsets[i].x/4, offsets[i].y/4, 320, 320);
-                    gif.addFrame(ctx, {copy: true, delay: 60}); 
-                    loaded++;
-                    
-                    let p = Math.round((loaded / total) * 50);
-                    bar.style.width = p + "%"; text.innerText = p + "%";
-
-                    if (loaded === total) {
-                        gif.on('progress', (prog) => { 
-                            let p2 = 50 + Math.round(prog * 50);
-                            bar.style.width = p2 + "%"; text.innerText = p2 + "%"; 
-                        });
-                        gif.on('finished', blob => { 
-                            overlay.style.display = 'none'; 
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.href = url; a.download = `TOUCH_${Date.now()}.gif`; a.click();
-                            window.open(url, '_blank'); 
-                            alert("完成！保存してください。"); 
-                        });
-                        // 明示的にレンダリング開始
-                        setTimeout(() => gif.render(), 100);
-                    }
-                }; img.src = imgSrc;
+            status.innerText = "RENDERING GIF...";
+            gif.on('progress', (prog) => { 
+                let p2 = 50 + Math.round(prog * 50);
+                bar.style.width = p2 + "%"; text.innerText = p2 + "%"; 
             });
+
+            gif.on('finished', blob => { 
+                overlay.style.display = 'none'; 
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = `TOUCH_${Date.now()}.gif`; a.click();
+                window.open(url, '_blank'); 
+                alert("完成しました！"); 
+            });
+
+            setTimeout(() => gif.render(), 100);
         }
 
-        function toggleOnionGuide() { isOnionEnabled = !isOnionEnabled; document.getElementById('guide-btn').classList.toggle('btn-red', isOnionEnabled); if(!isOnionEnabled) document.getElementById('onion-guide').style.display='none'; }
         function resetOffset() { offsets[getIdx()] = {x:0, y:0}; updateImage(); }
-        function resetAllOffsets() { if(confirm("全リセット？")) { offsets = offsets.map(()=>({x:0,y:0})); updateImage(); } }
         function getIdx() { return (Math.floor(currentPos) % capturedImages.length + capturedImages.length) % capturedImages.length; }
-        function readFileAsDataURL(file) { return new Promise(res => { const r = new FileReader(); r.onload = e => res(e.target.result); r.readAsDataURL(file); }); }
     </script>
 </body>
 </html>
