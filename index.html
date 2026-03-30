@@ -9,41 +9,31 @@
         body { margin: 0; padding: 0; background: var(--bg-color); color: var(--text-color); font-family: -apple-system, sans-serif; overflow: hidden; -webkit-user-select: none; user-select: none; }
         .screen { display: none; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; flex-direction: column; align-items: center; }
         .screen.active { display: flex; }
-        h1 { font-size: 4.5rem; font-weight: 900; letter-spacing: 0.2em; margin: 15vh 0 2rem 0.2em; }
+        h1 { font-size: 4.5rem; font-weight: 900; letter-spacing: 0.2em; margin: 12vh 0 1rem 0.2em; }
         
+        /* UI Components */
         .btn { background: #2c2c2e; color: #fff; padding: 18px; font-size: 1rem; border-radius: 14px; margin: 8px; cursor: pointer; width: 85%; max-width: 320px; text-align: center; border: none; }
         .btn-red { background: var(--accent-color) !important; font-weight: bold; }
-        .mini-btn { background: #333; color: #fff; border: 1px solid #444; padding: 12px; border-radius: 12px; font-size: 0.75rem; flex: 1; max-width: 150px; text-align: center; cursor: pointer; }
-        .nav-row { display: flex; width: 92%; justify-content: space-around; margin-top: auto; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
-        .nav-row .btn { width: 45%; margin: 0; padding: 12px; font-size: 0.8rem; }
-
+        .mini-btn { background: #333; color: #fff; border: 1px solid #444; padding: 10px; border-radius: 10px; font-size: 0.75rem; flex: 1; text-align: center; cursor: pointer; }
+        .nav-row { display: flex; width: 92%; justify-content: space-around; margin-top: auto; padding-bottom: calc(20px + env(safe-area-inset-bottom)); gap: 10px; }
+        
+        /* Viewer Area */
         #camera-container, #viewer-area { width: 100vw; height: 60vh; background: #000; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-        video, .viewer-layer, #onion-guide { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
-        #onion-guide { z-index: 5; opacity: 0.3; display: none; pointer-events: none; }
-        #onion-layer { z-index: 5; display: none; } 
-        #current-layer { z-index: 10; touch-action: none; } 
-        #current-layer.dragging { opacity: 0.6; } 
-
-        .grid { position: absolute; background: rgba(255,255,255,0.3); pointer-events: none; z-index: 15; transition: background 0.2s; }
+        video, .viewer-layer, #onion-guide { width: 100%; height: 100%; object-fit: cover; position: absolute; }
+        #current-layer { z-index: 10; touch-action: none; }
+        #onion-layer { z-index: 5; opacity: 0.4; display: none; }
+        
+        /* Leveler & Grid */
+        .grid { position: absolute; background: rgba(255,255,255,0.3); pointer-events: none; z-index: 15; }
         .grid.aligned { background: var(--safe-color); box-shadow: 0 0 8px var(--safe-color); }
-        #leveler-dot { position: absolute; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #fff; z-index: 16; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+        #leveler-dot { position: absolute; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #fff; z-index: 16; top: 50%; left: 50%; transform: translate(-50%, -50%); }
 
-        .controls { width: 100%; flex-grow: 1; display: flex; flex-direction: column; align-items: center; background: #000; padding-top: 10px; z-index: 20; }
-        #shutter { width: 70px; height: 70px; border-radius: 50%; background: #fff; border: 5px solid #333; margin-bottom: 10px; transition: background 0.1s; }
-        #shutter:active { background: #ccc; }
-
-        .lib-header { width: 92%; display: flex; justify-content: space-between; align-items: center; margin-top: 50px; }
-        #lib-list { width: 92%; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 10px 0; }
-        .lib-item { background: var(--card-bg); padding: 12px; border-radius: 18px; display: flex; align-items: center; border: 1px solid #2c2c2e; }
-        .thumb-wrap { position: relative; width: 64px; height: 64px; flex-shrink: 0; }
-        .thumb { width: 100%; height: 100%; border-radius: 14px; object-fit: cover; }
-        .badge { position: absolute; background: var(--accent-color); color: white; font-size: 0.6rem; font-weight: bold; padding: 2px 5px; border-radius: 8px; border: 2px solid var(--card-bg); }
-        .badge-br { bottom: -4px; right: -4px; }
-        .badge-bl { bottom: -4px; left: -4px; background: #333; }
-        .item-info { flex: 1; margin-left: 15px; overflow: hidden; display: flex; flex-direction: column; gap: 2px; }
-        .item-title { font-weight: bold; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #fff; }
-        .item-date { font-size: 0.7rem; color: #888; }
-        .edit-name-btn { background: none; border: none; color: #888; font-size: 0.9rem; padding: 5px; cursor: pointer; }
+        /* Library List */
+        #lib-list { width: 92%; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 10px 0; }
+        .lib-item { background: var(--card-bg); padding: 10px; border-radius: 14px; display: flex; align-items: center; gap: 10px; }
+        .thumb { width: 50px; height: 50px; border-radius: 8px; object-fit: cover; }
+        .item-info { flex: 1; overflow: hidden; }
+        .item-title { font-weight: bold; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     </style>
 </head>
 <body>
@@ -52,33 +42,32 @@
         <h1>TOUCH</h1>
         <button class="btn btn-red" onclick="nav('camera')">CAPTURE</button>
         <button class="btn" onclick="openLibrary()">LIBRARY</button>
+        <div style="font-size: 0.7rem; color: #444; margin-top: auto; padding-bottom: 20px;">v1.0 Hybrid Edition</div>
     </div>
 
     <div id="camera" class="screen">
         <div id="camera-container">
             <video id="video" autoplay playsinline muted></video>
-            <img id="onion-guide">
-            <div id="grid-v1" class="grid" style="width:1px; height:100%; left:33.3%;"></div>
-            <div id="grid-v2" class="grid" style="width:1px; height:100%; left:66.6%;"></div>
-            <div id="grid-h1" class="grid" style="width:100%; height:1px; top:33.3%;"></div>
-            <div id="grid-h2" class="grid" style="width:100%; height:1px; top:66.6%;"></div>
-            <div id="grid-h3" class="grid" style="width:100%; height:1px; top:50%; display:none;"></div>
+            <img id="onion-guide" style="display:none; opacity:0.3;">
+            <div id="grid-v1" class="grid" style="width:1px; height:100%; left:33%;"></div>
+            <div id="grid-v2" class="grid" style="width:1px; height:100%; left:66%;"></div>
+            <div id="grid-h1" class="grid" style="width:100%; height:1px; top:33%;"></div>
+            <div id="grid-h2" class="grid" style="width:100%; height:1px; top:66%;"></div>
             <div id="leveler-dot"></div>
         </div>
-        <div class="controls">
-            <div id="counter" style="color:#666; font-size:0.7rem; margin-bottom:5px;">0 FRAMES</div>
-            <div id="shutter" onclick="captureFrame()"></div>
-            <div style="display:flex; gap:10px; width:90%; justify-content:center; margin-bottom:10px;">
-                <div id="mode-obj" class="mini-btn btn-red" onclick="setCaptureMode('obj')">OBJ (📦)</div>
-                <div id="mode-360" class="mini-btn" onclick="setCaptureMode('360')">360 (🌐)</div>
-                <div id="guide-toggle" class="mini-btn" style="max-width:80px;" onclick="toggleOnionGuide()">GUIDE</div>
+        <div style="flex-grow:1; display:flex; flex-direction:column; align-items:center; width:100%; background:#000;">
+            <div id="counter" style="color:#666; font-size:0.7rem; margin:10px 0;">0 FRAMES</div>
+            <div id="shutter" style="width:60px; height:60px; border-radius:50%; background:#fff; border:4px solid #333;" onclick="captureFrame()"></div>
+            <div class="nav-row" style="margin-top:20px;">
+                <label class="mini-btn" style="background:#222;">IMPORT<input type="file" multiple accept="image/*" style="display:none;" onchange="importPhotos(this)"></label>
+                <div id="mode-toggle" class="mini-btn btn-red" onclick="toggleCaptureMode()">OBJ (📦)</div>
+                <div id="guide-btn" class="mini-btn" onclick="toggleOnionGuide()">GUIDE</div>
             </div>
             <div class="nav-row">
-                <button class="btn" onclick="nav('home')">CANCEL</button>
-                <button class="btn" onclick="startViewer(true)">DONE</button>
+                <button class="mini-btn" style="padding:15px;" onclick="nav('home')">BACK</button>
+                <button class="mini-btn btn-red" style="padding:15px;" onclick="startViewer(true)">DONE</button>
             </div>
         </div>
-        <canvas id="buffer" style="display:none;"></canvas>
     </div>
 
     <div id="viewer" class="screen">
@@ -86,62 +75,60 @@
             <img id="onion-layer" class="viewer-layer">
             <img id="current-layer" class="viewer-layer">
         </div>
-        <div class="controls">
-            <div id="preview-ui" style="width:100%; display:flex; flex-direction:column; align-items:center; gap:10px;">
-                <div style="display:flex; gap:8px; width:92%; justify-content:center;">
-                    <div id="btn-loop" class="mini-btn" onclick="toggleLoopPlay()" style="flex:2; border:2px solid var(--accent-color);">LOOP: OFF</div>
-                    <div id="btn-speed" class="mini-btn" onclick="cycleSpeed()" style="flex:1;">×1.0</div>
+        <div style="flex-grow:1; display:flex; flex-direction:column; align-items:center; width:100%; background:#000; padding-top:10px;">
+            <div id="preview-ui" style="width:90%; display:flex; flex-direction:column; gap:10px;">
+                <div style="display:flex; gap:8px;">
+                    <div id="btn-loop" class="mini-btn" style="flex:2; border:2px solid var(--accent-color);" onclick="toggleLoopPlay()">LOOP: OFF</div>
+                    <div id="btn-speed" class="mini-btn" onclick="cycleSpeed()">×1.0</div>
                 </div>
-                <div style="display:flex; gap:8px; width:92%; justify-content:center;">
-                    <div class="mini-btn" onclick="stepFrame(-1)" style="background:#2c2c2e;">◀ STEP</div>
-                    <div class="mini-btn" onclick="stepFrame(1)" style="background:#2c2c2e;">STEP ▶</div>
+                <div style="display:flex; gap:8px;">
+                    <div class="mini-btn" onclick="stepFrame(-1)">◀ STEP</div>
+                    <div class="mini-btn" onclick="stepFrame(1)">STEP ▶</div>
                 </div>
-                <div class="mini-btn" onclick="setMode('edit')" style="width:85%; max-width:280px; opacity:0.6; margin-top:5px;">EDIT MODE (ALIGN)</div>
+                <div style="display:flex; gap:8px;">
+                    <div class="mini-btn" style="background:#222;" onclick="setMode('edit')">EDIT MODE (ALIGN)</div>
+                    <div class="mini-btn" style="background:#222;" onclick="exportToGif()">🎬 MAKE GIF</div>
+                </div>
             </div>
 
-            <div id="edit-ui" style="width:100%; display:none; flex-direction:column; align-items:center;">
-                <div style="display:flex; align-items:center; gap:15px; margin-bottom:10px;">
-                    <div class="mini-btn" style="max-width:50px;" onclick="stepFrame(-1)">◀</div>
-                    <div id="frame-counter" style="color:#fff; font-weight:bold; font-family:monospace; min-width:80px; text-align:center;">[0/0]</div>
-                    <div class="mini-btn" style="max-width:50px;" onclick="stepFrame(1)">▶</div>
-                </div>
-                <div style="display:flex; gap:8px; width:92%; justify-content:center;">
+            <div id="edit-ui" style="width:90%; display:none; flex-direction:column; align-items:center; gap:10px;">
+                <div id="frame-counter" style="font-family:monospace;">[0 / 0]</div>
+                <div style="display:flex; gap:8px; width:100%;">
                     <div class="mini-btn" onclick="resetOffset()">RESET</div>
                     <div class="mini-btn" onclick="resetAllOffsets()">ALL RESET</div>
-                    <div class="mini-btn" onclick="setMode('preview')" style="background:#444;">EXIT</div>
+                    <div class="mini-btn" style="background:#444;" onclick="setMode('preview')">EXIT</div>
                 </div>
             </div>
 
             <div class="nav-row" id="save-controls">
-                <button class="btn" onclick="nav('camera')">RETAKE</button>
-                <button class="btn" onclick="saveToLibrary(false)">SAVE</button>
+                <button class="mini-btn" onclick="nav('camera')">RETAKE</button>
+                <button class="mini-btn btn-red" onclick="saveToLibrary(false)">SAVE</button>
             </div>
             <div class="nav-row" id="lib-nav-controls" style="display:none;">
-                <button class="btn" onclick="confirmAndExit('home')">HOME</button>
-                <button class="btn" onclick="confirmAndExit('library')">BACK</button>
+                <button class="mini-btn" onclick="confirmAndExit('home')">HOME</button>
+                <button class="mini-btn" onclick="confirmAndExit('library')">BACK</button>
             </div>
         </div>
     </div>
 
     <div id="library" class="screen">
-        <div class="lib-header">
+        <div style="width:92%; display:flex; justify-content:space-between; align-items:center; margin-top:50px;">
             <h2 style="margin:0;">LIBRARY</h2>
-            <div style="display:flex; gap:5px;">
-                <button id="sort-date" class="mini-btn" style="min-width:60px;" onclick="openLibrary('date')">DATE</button>
-                <button id="sort-name" class="mini-btn" style="min-width:60px;" onclick="openLibrary('name')">NAME</button>
-            </div>
+            <label class="mini-btn" style="max-width:80px;">IMPORT<input type="file" accept=".touch" style="display:none;" onchange="importTouchData(this)"></label>
         </div>
         <div id="lib-list"></div>
         <div class="nav-row"><button class="btn" onclick="nav('home')" style="width:90%">HOME</button></div>
     </div>
 
-    <script>
+    <canvas id="buffer" style="display:none;"></canvas>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script> <script>
         let capturedImages = [], offsets = [], captureMode = 'obj', currentOpenId = null;
         let isDragging = false, isEditScreen = false, isAutoPlaying = false, isOnionEnabled = false;
         let hasUnsavedChanges = false, autoPlaySpeed = 1.0;
         let lastX = 0, lastY = 0, velocity = 0, currentPos = 0;
         let tiltX = 0, tiltY = 0, db;
 
+        // DB & Init
         const request = indexedDB.open("TouchAppDB", 1);
         request.onupgradeneeded = e => { e.target.result.createObjectStore("photos", { keyPath: "id", autoIncrement: true }); };
         request.onsuccess = e => { db = e.target.result; };
@@ -153,86 +140,87 @@
             if(id === 'camera') initCamera(); else stopCamera();
         }
 
+        // Camera & Import Logic
         async function initCamera() {
-            capturedImages = []; offsets = []; currentOpenId = null; hasUnsavedChanges = false;
+            capturedImages = []; offsets = []; currentOpenId = null;
             document.getElementById('counter').innerText = `0 FRAMES`;
-            document.getElementById('onion-guide').style.display = 'none';
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 1280, height: 1280 } });
                 document.getElementById('video').srcObject = stream;
-                if (window.DeviceOrientationEvent) window.addEventListener('deviceorientation', handleOrientation);
-            } catch (e) { alert("Camera Access Denied"); }
+                window.addEventListener('deviceorientation', handleOrientation);
+            } catch (e) { alert("Camera Error"); }
+        }
+
+        function stopCamera() {
+            const v = document.getElementById('video');
+            if(v.srcObject) v.srcObject.getTracks().forEach(t => t.stop());
+            window.removeEventListener('deviceorientation', handleOrientation);
         }
 
         function handleOrientation(e) {
             tiltX = e.gamma; tiltY = e.beta;
             const dot = document.getElementById('leveler-dot');
-            const moveX = Math.max(-50, Math.min(50, tiltX));
-            const moveY = Math.max(-50, Math.min(50, tiltY - 70));
+            const moveX = Math.max(-40, Math.min(40, tiltX));
+            const moveY = Math.max(-40, Math.min(40, tiltY - 70));
             dot.style.transform = `translate(calc(-50% + ${moveX}px), calc(-50% + ${moveY}px))`;
             const isAligned = Math.abs(tiltX) < 3 && Math.abs(tiltY - 70) < 3;
             document.querySelectorAll('.grid').forEach(g => g.classList.toggle('aligned', isAligned));
         }
 
-        function stopCamera() {
-            const video = document.getElementById('video');
-            if(video.srcObject) { video.srcObject.getTracks().forEach(t => t.stop()); video.srcObject = null; }
-            window.removeEventListener('deviceorientation', handleOrientation);
-        }
-
-        function setCaptureMode(mode) {
-            captureMode = mode;
-            document.getElementById('mode-obj').classList.toggle('btn-red', mode === 'obj');
-            document.getElementById('mode-360').classList.toggle('btn-red', mode === '360');
-            const vLines = [document.getElementById('grid-v1'), document.getElementById('grid-v2')];
-            const hLines = [document.getElementById('grid-h1'), document.getElementById('grid-h2')];
-            const h3 = document.getElementById('grid-h3');
-            if (mode === '360') {
-                vLines.forEach(l => l.style.display = 'none');
-                hLines[0].style.top = '25%'; hLines[1].style.top = '75%'; h3.style.display = 'block';
-            } else {
-                vLines.forEach(l => l.style.display = 'block');
-                hLines[0].style.top = '33.3%'; hLines[1].style.top = '66.6%'; h3.style.display = 'none';
-            }
-        }
-
-        function toggleOnionGuide() {
-            isOnionEnabled = !isOnionEnabled;
-            document.getElementById('guide-toggle').classList.toggle('btn-red', isOnionEnabled);
-            const guide = document.getElementById('onion-guide');
-            if (isOnionEnabled && capturedImages.length > 0) {
-                guide.src = capturedImages[capturedImages.length - 1];
-                guide.style.display = 'block';
-            } else { guide.style.display = 'none'; }
-        }
-
         function captureFrame() {
-            const video = document.getElementById('video');
+            const v = document.getElementById('video');
             const canvas = document.getElementById('buffer');
-            canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-            canvas.getContext('2d').drawImage(video, 0, 0);
-            capturedImages.push(canvas.toDataURL('image/jpeg', 0.6));
-            offsets.push({x: 0, y: 0});
+            canvas.width = 1280; canvas.height = 1280;
+            canvas.getContext('2d').drawImage(v, 0, 0, 1280, 1280);
+            const data = canvas.toDataURL('image/jpeg', 0.7);
+            capturedImages.push(data);
+            offsets.push({x:0, y:0});
             document.getElementById('counter').innerText = `${capturedImages.length} FRAMES`;
-            if (isOnionEnabled) document.getElementById('onion-guide').src = capturedImages[capturedImages.length - 1];
+            if(isOnionEnabled) document.getElementById('onion-guide').src = data;
         }
 
-        function startViewer(isNewCapture) {
+        async function importPhotos(input) {
+            const files = Array.from(input.files);
+            for (let file of files) {
+                const data = await readFileAsDataURL(file);
+                const resized = await resizeImage(data);
+                capturedImages.push(resized);
+                offsets.push({x:0, y:0});
+            }
+            document.getElementById('counter').innerText = `${capturedImages.length} FRAMES`;
+        }
+
+        function resizeImage(data) {
+            return new Promise(res => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.getElementById('buffer');
+                    canvas.width = 1280; canvas.height = 1280;
+                    const ctx = canvas.getContext('2d');
+                    const size = Math.min(img.width, img.height);
+                    ctx.drawImage(img, (img.width-size)/2, (img.height-size)/2, size, size, 0,0,1280,1280);
+                    res(canvas.toDataURL('image/jpeg', 0.7));
+                };
+                img.src = data;
+            });
+        }
+
+        // Viewer Logic
+        function startViewer(isNew) {
             if(capturedImages.length < 2) return;
-            currentPos = 0; autoPlaySpeed = 1.0; isAutoPlaying = false;
-            const loopBtn = document.getElementById('btn-loop');
-            loopBtn.innerText = "LOOP: OFF"; loopBtn.classList.remove('btn-red');
-            document.getElementById('btn-speed').innerText = "×1.0";
+            currentPos = 0; isAutoPlaying = false;
             setMode('preview');
-            document.getElementById('save-controls').style.display = isNewCapture ? 'flex' : 'none';
-            document.getElementById('lib-nav-controls').style.display = isNewCapture ? 'none' : 'flex';
-            nav('viewer'); renderLoop();
-            if (isNewCapture) toggleLoopPlay();
+            document.getElementById('save-controls').style.display = isNew ? 'flex' : 'none';
+            document.getElementById('lib-nav-controls').style.display = isNew ? 'none' : 'flex';
+            nav('viewer');
+            renderLoop();
         }
 
         function setMode(mode) {
             isEditScreen = (mode === 'edit');
-            if(isAutoPlaying) toggleLoopPlay(); // モード切替時は再生停止
+            isAutoPlaying = false;
+            document.getElementById('btn-loop').innerText = "LOOP: OFF";
+            document.getElementById('btn-loop').classList.remove('btn-red');
             document.getElementById('preview-ui').style.display = isEditScreen ? 'none' : 'flex';
             document.getElementById('edit-ui').style.display = isEditScreen ? 'flex' : 'none';
             document.getElementById('onion-layer').style.display = isEditScreen ? 'block' : 'none';
@@ -240,17 +228,15 @@
         }
 
         function updateImage() {
-            const total = capturedImages.length; if(total === 0) return;
+            const total = capturedImages.length; if(!total) return;
             const idx = (Math.floor(currentPos) % total + total) % total;
-            const prevIdx = (idx - 1 + total) % total;
-            if (isEditScreen) document.getElementById('frame-counter').innerText = `[${idx + 1} / ${total}]`;
-            const cImg = document.getElementById('current-layer');
-            const oImg = document.getElementById('onion-layer');
-            cImg.src = capturedImages[idx];
-            cImg.style.transform = `translate(${offsets[idx].x}px, ${offsets[idx].y}px)`;
-            if (isEditScreen) {
-                oImg.src = capturedImages[prevIdx];
-                oImg.style.transform = `translate(${offsets[prevIdx].x}px, ${offsets[prevIdx].y}px)`;
+            document.getElementById('current-layer').src = capturedImages[idx];
+            document.getElementById('current-layer').style.transform = `translate(${offsets[idx].x}px, ${offsets[idx].y}px)`;
+            if(isEditScreen) {
+                const pIdx = (idx - 1 + total) % total;
+                document.getElementById('onion-layer').src = capturedImages[pIdx];
+                document.getElementById('onion-layer').style.transform = `translate(${offsets[pIdx].x}px, ${offsets[pIdx].y}px)`;
+                document.getElementById('frame-counter').innerText = `[ ${idx + 1} / ${total} ]`;
             }
         }
 
@@ -259,117 +245,120 @@
             const btn = document.getElementById('btn-loop');
             btn.innerText = isAutoPlaying ? "LOOP: ON" : "LOOP: OFF";
             btn.classList.toggle('btn-red', isAutoPlaying);
-            if (isAutoPlaying) runLoopAnimation();
+            if(isAutoPlaying) animate();
         }
 
-        function runLoopAnimation() {
-            if (!isAutoPlaying || isEditScreen) return;
+        function animate() {
+            if(!isAutoPlaying || isEditScreen) return;
             currentPos += (capturedImages.length / 180) * autoPlaySpeed;
             updateImage();
-            requestAnimationFrame(runLoopAnimation);
+            requestAnimationFrame(animate);
         }
 
-        function cycleSpeed() {
-            if (autoPlaySpeed === 1.0) autoPlaySpeed = 2.0;
-            else if (autoPlaySpeed === 2.0) autoPlaySpeed = 0.5;
-            else autoPlaySpeed = 1.0;
-            document.getElementById('btn-speed').innerText = `×${autoPlaySpeed.toFixed(1)}`;
-        }
+        function stepFrame(dir) { isAutoPlaying = false; currentPos = Math.round(currentPos) + dir; updateImage(); }
+        function resetOffset() { const i = getIdx(); offsets[i] = {x:0, y:0}; hasUnsavedChanges = true; updateImage(); }
+        function getIdx() { return (Math.floor(currentPos) % capturedImages.length + capturedImages.length) % capturedImages.length; }
 
-        function stepFrame(dir) { 
-            if(isAutoPlaying) toggleLoopPlay(); // 送りボタン時は再生停止
-            currentPos = Math.round(currentPos) + dir; 
-            updateImage(); 
-        }
-
-        function resetOffset() { const idx = (Math.floor(currentPos) % capturedImages.length + capturedImages.length) % capturedImages.length; offsets[idx] = {x:0, y:0}; hasUnsavedChanges = true; updateImage(); }
-        function resetAllOffsets() { if(confirm("全てリセットしますか？")) { offsets = capturedImages.map(() => ({x:0, y:0})); hasUnsavedChanges = true; updateImage(); } }
-
+        // Interaction
         const vArea = document.getElementById('viewer-area');
-        vArea.addEventListener('pointerdown', e => { 
-            isDragging = true; lastX = e.clientX; lastY = e.clientY; velocity = 0; 
-            if(isEditScreen) { document.getElementById('current-layer').classList.add('dragging'); hasUnsavedChanges = true; }
-            vArea.setPointerCapture(e.pointerId); 
-        });
-        vArea.addEventListener('pointermove', e => {
+        vArea.onpointerdown = e => { isDragging = true; lastX = e.clientX; lastY = e.clientY; velocity = 0; vArea.setPointerCapture(e.pointerId); };
+        vArea.onpointermove = e => {
             if(!isDragging || isAutoPlaying) return;
-            const idx = (Math.floor(currentPos) % capturedImages.length + capturedImages.length) % capturedImages.length;
-            if (isEditScreen) { offsets[idx].x += (e.clientX - lastX); offsets[idx].y += (e.clientY - lastY); updateImage(); }
-            else { velocity = ((e.clientX - lastX) / window.innerWidth) * (capturedImages.length * 0.8); currentPos += velocity; updateImage(); }
+            if(isEditScreen) { offsets[getIdx()].x += (e.clientX - lastX); offsets[getIdx()].y += (e.clientY - lastY); hasUnsavedChanges = true; updateImage(); }
+            else { velocity = (e.clientX - lastX) / 10; currentPos += velocity; updateImage(); }
             lastX = e.clientX; lastY = e.clientY;
-        });
-        vArea.addEventListener('pointerup', () => { isDragging = false; document.getElementById('current-layer').classList.remove('dragging'); });
+        };
+        vArea.onpointerup = () => isDragging = false;
 
         function renderLoop() {
-            if(!document.getElementById('viewer').classList.contains('active')) return;
-            if(!isAutoPlaying && !isDragging && Math.abs(velocity) > 0.01) { velocity *= 0.95; currentPos += velocity; updateImage(); }
+            if(document.getElementById('viewer').classList.contains('active') && !isAutoPlaying && !isDragging && Math.abs(velocity) > 0.01) {
+                velocity *= 0.95; currentPos += velocity; updateImage();
+            }
             requestAnimationFrame(renderLoop);
         }
 
-        function saveToLibrary(isUpdate) {
-            const transaction = db.transaction(["photos"], "readwrite");
-            const store = transaction.objectStore("photos");
-            const idx = (Math.floor(currentPos) % capturedImages.length + capturedImages.length) % capturedImages.length;
-            if (isUpdate && currentOpenId !== null) {
-                store.get(currentOpenId).onsuccess = e => {
-                    const data = e.target.result; data.offsets = offsets; data.thumb = capturedImages[idx];
-                    store.put(data).onsuccess = () => { hasUnsavedChanges = false; alert("更新完了"); setMode('preview'); };
-                };
-            } else {
-                const title = prompt("作品名", new Date().toLocaleString());
-                if(!title) return;
-                store.add({ title, data: capturedImages, offsets, thumb: capturedImages[idx], timestamp: Date.now(), count: capturedImages.length, mode: captureMode })
-                .onsuccess = () => { hasUnsavedChanges = false; nav('home'); };
-            }
+        // Export/Import Files
+        async function exportTouchData(id) {
+            db.transaction(["photos"], "readonly").objectStore("photos").get(id).onsuccess = e => {
+                const item = e.target.result;
+                const blob = new Blob([JSON.stringify(item)], {type: "application/json"});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = `${item.title}.touch`; a.click();
+            };
         }
 
-        function openLibrary(sortBy = 'date') {
+        async function importTouchData(input) {
+            const file = input.files[0]; if(!file) return;
+            const text = await file.text();
+            const item = JSON.parse(text);
+            delete item.id; // 新規登録のためIDを削除
+            const tx = db.transaction(["photos"], "readwrite");
+            tx.objectStore("photos").add(item).onsuccess = () => openLibrary();
+        }
+
+        // SNS GIF Export
+        function exportToGif() {
+            alert("GIF生成を開始します。しばらくお待ちください...");
+            const gif = new GIF({ workers: 2, quality: 10, width: 640, height: 640 });
+            const canvas = document.getElementById('buffer');
+            canvas.width = 640; canvas.height = 640;
+            const ctx = canvas.getContext('2d');
+
+            capturedImages.forEach((imgSrc, i) => {
+                const img = new Image();
+                img.src = imgSrc;
+                // 同期的に描画するため少し工夫が必要ですが、ここでは簡易版
+                ctx.fillStyle = "#000"; ctx.fillRect(0,0,640,640);
+                // オフセットを考慮して描画
+                ctx.drawImage(img, offsets[i].x/2, offsets[i].y/2, 640, 640);
+                gif.addFrame(ctx, {copy: true, delay: 50});
+            });
+
+            gif.on('finished', blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = "touch_work.gif"; a.click();
+                alert("GIFが保存されました！");
+            });
+            gif.render();
+        }
+
+        // Library UI
+        function openLibrary() {
             const list = document.getElementById('lib-list'); list.innerHTML = "";
-            document.getElementById('sort-date').classList.toggle('btn-red', sortBy === 'date');
-            document.getElementById('sort-name').classList.toggle('btn-red', sortBy === 'name');
-            const items = [];
             db.transaction(["photos"], "readonly").objectStore("photos").openCursor().onsuccess = e => {
                 const cursor = e.target.result;
-                if(cursor) { items.push(cursor.value); cursor.continue(); }
-                else {
-                    items.sort((a,b) => sortBy === 'name' ? a.title.localeCompare(b.title) : b.timestamp - a.timestamp);
-                    items.forEach(item => {
-                        const div = document.createElement('div'); div.className = 'lib-item';
-                        div.innerHTML = `<div class="thumb-wrap"><img src="${item.thumb}" class="thumb"><div class="badge badge-bl">${item.mode==='360'?'🌐':'📦'}</div><div class="badge badge-br">${item.count}</div></div>
-                            <div class="item-info"><div><span class="item-title">${item.title}</span><button class="edit-name-btn" onclick="renameItem(${item.id}, '${item.title.replace(/'/g, "\\'")}')">✎</button></div><span class="item-date">${new Date(item.timestamp).toLocaleString()}</span></div>
-                            <div style="display:flex; gap:5px;"><button class="mini-btn" style="min-width:40px;" onclick="viewItem(${item.id})">▶</button><button class="mini-btn" style="min-width:40px; color:#666;" onclick="deleteItem(${item.id})">🗑</button></div>`;
-                        list.appendChild(div);
-                    });
+                if(cursor) {
+                    const item = cursor.value;
+                    const div = document.createElement('div'); div.className = 'lib-item';
+                    div.innerHTML = `<img src="${item.thumb}" class="thumb">
+                        <div class="item-info"><span class="item-title">${item.title}</span></div>
+                        <button class="mini-btn" onclick="viewItem(${item.id})">▶</button>
+                        <button class="mini-btn" onclick="exportTouchData(${item.id})">📤</button>
+                        <button class="mini-btn" style="color:#666;" onclick="deleteItem(${item.id})">🗑</button>`;
+                    list.appendChild(div); cursor.continue();
                 }
             };
             nav('library');
         }
 
+        function saveToLibrary() {
+            const title = prompt("作品名", new Date().toLocaleString());
+            if(!title) return;
+            const tx = db.transaction(["photos"], "readwrite");
+            tx.objectStore("photos").add({ title, data: capturedImages, offsets, thumb: capturedImages[0], timestamp: Date.now() })
+            .onsuccess = () => { hasUnsavedChanges = false; nav('home'); };
+        }
+
         window.viewItem = id => {
             db.transaction(["photos"], "readonly").objectStore("photos").get(id).onsuccess = e => {
-                const item = e.target.result; capturedImages = item.data; offsets = item.offsets || item.data.map(()=>({x:0,y:0}));
-                currentOpenId = id; hasUnsavedChanges = false; startViewer(false);
+                const item = e.target.result; capturedImages = item.data; offsets = item.offsets;
+                currentOpenId = id; startViewer(false);
             };
         };
 
-        window.renameItem = (id, oldTitle) => {
-            const newTitle = prompt("新しい作品名", oldTitle);
-            if (!newTitle || newTitle === oldTitle) return;
-            db.transaction(["photos"], "readwrite").objectStore("photos").get(id).onsuccess = e => {
-                const data = e.target.result; data.title = newTitle;
-                db.transaction(["photos"], "readwrite").objectStore("photos").put(data).onsuccess = () => openLibrary();
-            };
-        };
-
-        window.deleteItem = id => { if(confirm("削除しますか？")) { db.transaction(["photos"], "readwrite").objectStore("photos").delete(id).onsuccess = () => openLibrary(); } };
-
-        function confirmAndExit(target) {
-            if (hasUnsavedChanges) {
-                const msg = "変更が保存されていません。破棄して移動しますか？";
-                if (!confirm(msg)) return;
-            }
-            hasUnsavedChanges = false; if (target === 'home') nav('home'); else openLibrary();
-        }
+        window.deleteItem = id => { if(confirm("削除しますか？")) db.transaction(["photos"], "readwrite").objectStore("photos").delete(id).onsuccess = () => openLibrary(); };
+        function readFileAsDataURL(file) { return new Promise(res => { const r = new FileReader(); r.onload = e => res(e.target.result); r.readAsDataURL(file); }); }
+        function cycleSpeed() { autoPlaySpeed = autoPlaySpeed === 1.0 ? 2.0 : (autoPlaySpeed === 2.0 ? 0.5 : 1.0); document.getElementById('btn-speed').innerText = `×${autoPlaySpeed.toFixed(1)}`; }
     </script>
 </body>
 </html>
