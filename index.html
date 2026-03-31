@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>TOUCH REBORN</title>
+    <title>TOUCH PRO</title>
     <style>
         :root { --bg-color: #000; --text-color: #fff; --accent-color: #ff3b30; --card-bg: #1c1c1e; }
         body { margin: 0; padding: 0; background: var(--bg-color); color: var(--text-color); font-family: -apple-system, sans-serif; overflow: hidden; -webkit-user-select: none; }
@@ -14,16 +14,24 @@
         .btn-red { background: var(--accent-color) !important; font-weight: bold; }
         .mini-btn { background: #333; color: #fff; border: 1px solid #444; padding: 10px; border-radius: 10px; font-size: 0.75rem; flex: 1; text-align: center; }
         .nav-row { display: flex; width: 92%; justify-content: space-around; margin-top: auto; padding-bottom: calc(20px + env(safe-area-inset-bottom)); gap: 10px; }
+        
+        /* Viewer / Camera Area */
         #viewer-area { width: 100vw; height: 100vw; max-height: 60vh; background: #000; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; touch-action: none; }
-        #view-canvas { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
-        #capture-controls { flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; gap: 20px; }
-        .shutter-row { display: flex; align-items: center; gap: 30px; }
-        .side-icon { width: 44px; height: 44px; background: #2c2c2e; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: #fff; }
+        #view-canvas, #video { width: 100%; height: 100%; object-fit: cover; }
+        
+        /* Guidelines */
+        #guide-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: none; border: 1px solid rgba(255,255,255,0.2); }
+        .guide-360 { position: absolute; top: 50%; left: 0; width: 100%; height: 1px; background: rgba(0,255,255,0.5); }
+        .guide-obj { position: absolute; top: 50%; left: 50%; width: 200px; height: 200px; border: 2px dashed rgba(255,255,0,0.5); border-radius: 50%; transform: translate(-50%, -50%); }
+
+        /* Shutter Row */
+        .shutter-row { display: flex; align-items: center; gap: 30px; margin: 20px 0; }
         #shutter { width: 70px; height: 70px; border-radius: 50%; background: #fff; border: 5px solid #333; box-shadow: 0 0 0 2px #fff; }
+        .mode-tag { background: #444; padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; color: #ccc; }
+
         #lib-list { width: 92%; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 10px 0; }
         .lib-item { background: var(--card-bg); padding: 10px; border-radius: 14px; display: flex; align-items: center; gap: 10px; }
         .thumb { width: 50px; height: 50px; border-radius: 8px; object-fit: cover; }
-        #loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); z-index: 3000; flex-direction: column; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
@@ -31,25 +39,33 @@
     <div id="home" class="screen active">
         <h1>TOUCH</h1>
         <button class="btn btn-red" onclick="nav('camera')">CAPTURE</button>
+        <button class="btn" onclick="document.getElementById('top-file-input').click()">IMPORT FILES</button>
+        <input type="file" id="top-file-input" multiple accept="image/*" style="display:none" onchange="handleFileSelect(event)">
         <button class="btn" onclick="nav('library')">LIBRARY</button>
     </div>
 
     <div id="camera" class="screen">
-        <div id="viewer-area"><video id="video" autoplay playsinline muted style="width:100%; height:100%; object-fit:cover;"></video></div>
-        <div id="capture-controls">
-            <div id="counter" style="color:#666; font-size:0.8rem;">0 FRAMES</div>
-            <div class="shutter-row">
-                <div class="side-icon" onclick="document.getElementById('file-input').click()">＋</div>
-                <div id="shutter" onclick="captureFrame()"></div>
-                <div class="side-icon" style="visibility:hidden;"></div>
+        <div id="viewer-area">
+            <video id="video" autoplay playsinline muted></video>
+            <div id="guide-overlay">
+                <div id="guide-content"></div>
             </div>
-            <input type="file" id="file-input" multiple accept="image/*" style="display:none" onchange="handleFileSelect(event)">
-            <div class="nav-row"><button class="mini-btn" onclick="nav('home')">BACK</button><button class="mini-btn btn-red" onclick="startViewer(true)">DONE</button></div>
+        </div>
+        <div style="flex-grow:1; display:flex; flex-direction:column; align-items:center; width:100%; justify-content: center;">
+            <div id="mode-display" class="mode-tag" onclick="toggleGuide()">GUIDE: OFF</div>
+            <div id="counter" style="color:#666; font-size:0.8rem; margin:10px 0;">0 FRAMES</div>
+            <div class="shutter-row">
+                <div id="shutter" onclick="captureFrame()"></div>
+            </div>
+            <div class="nav-row">
+                <button class="mini-btn" onclick="retakeAll()">RETAKE</button>
+                <button class="mini-btn btn-red" onclick="startViewer(true)">DONE</button>
+            </div>
         </div>
     </div>
 
     <div id="viewer" class="screen">
-        <div id="viewer-area" onpointerdown="onDown(event)" onpointermove="onMove(event)" onpointerup="onUp(event)" onpointercancel="onUp(event)">
+        <div id="viewer-area" onpointerdown="onDown(event)" onpointermove="onMove(event)" onpointerup="onUp(event)">
             <canvas id="view-canvas"></canvas>
         </div>
         <div style="flex-grow:1; display:flex; flex-direction:column; align-items:center; width:100%; padding-top:10px;">
@@ -72,13 +88,13 @@
         <div class="nav-row"><button class="btn" onclick="nav('home')" style="width:90%">HOME</button></div>
     </div>
 
-    <div id="loading-overlay"><div style="font-size:1.2rem; font-weight:bold; color:#fff;">RECORDING MP4...</div></div>
     <canvas id="buffer" style="display:none;"></canvas>
 
     <script>
         let capturedImages = [], offsets = [], db, imageElements = [];
         let isDragging = false, isEditScreen = false, isAutoPlaying = false;
         let currentPos = 0, lastX = 0, lastY = 0, velocity = 0;
+        let guideMode = 0; // 0:Off, 1:360, 2:Object
 
         const request = indexedDB.open("TouchAppDB", 1);
         request.onupgradeneeded = e => { e.target.result.createObjectStore("photos", { keyPath: "id", autoIncrement: true }); };
@@ -92,10 +108,13 @@
             if(id === 'library') renderLibraryList();
         }
 
+        // --- インポート処理（終了後プレビューへ） ---
         async function handleFileSelect(event) {
             const files = Array.from(event.target.files);
             if (files.length === 0) return;
             files.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true}));
+            
+            capturedImages = []; offsets = [];
             for (let file of files) {
                 const dataUrl = await new Promise(res => {
                     const reader = new FileReader();
@@ -105,21 +124,50 @@
                 capturedImages.push(dataUrl);
                 offsets.push({x:0, y:0});
             }
-            document.getElementById('counter').innerText = `${capturedImages.length} FRAMES`;
+            startViewer(true); // 取り込み完了後、即座にVIEWERへ
             event.target.value = "";
+        }
+
+        // --- ガイドライン切り替え ---
+        function toggleGuide() {
+            guideMode = (guideMode + 1) % 3;
+            const overlay = document.getElementById('guide-overlay');
+            const content = document.getElementById('guide-content');
+            const tag = document.getElementById('mode-display');
+            
+            if(guideMode === 0) {
+                overlay.style.display = 'none';
+                tag.innerText = "GUIDE: OFF";
+            } else if(guideMode === 1) {
+                overlay.style.display = 'block';
+                content.className = 'guide-360';
+                tag.innerText = "GUIDE: 360°";
+            } else {
+                overlay.style.display = 'block';
+                content.className = 'guide-obj';
+                tag.innerText = "GUIDE: OBJECT";
+            }
         }
 
         async function initCamera() {
             capturedImages = []; offsets = []; 
+            document.getElementById('counter').innerText = "0 FRAMES";
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 1000, height: 1000 } });
                 document.getElementById('video').srcObject = stream;
-            } catch (e) { console.log("Camera access denied"); }
+            } catch (e) { console.log("Camera Error"); }
         }
 
         function stopCamera() {
             const v = document.getElementById('video');
             if(v && v.srcObject) { v.srcObject.getTracks().forEach(t => t.stop()); v.srcObject = null; }
+        }
+
+        function retakeAll() {
+            if(confirm("すべて撮り直しますか？")) {
+                capturedImages = []; offsets = [];
+                document.getElementById('counter').innerText = "0 FRAMES";
+            }
         }
 
         function captureFrame() {
@@ -171,59 +219,26 @@
             ctx.drawImage(imageElements[idx], offsets[idx].x, offsets[idx].y, 800, 800);
         }
 
-        // --- 操作ロジックの修正 ---
-        function onDown(e) {
-            isDragging = true;
-            lastX = e.clientX;
-            lastY = e.clientY;
-            velocity = 0;
-            e.currentTarget.setPointerCapture(e.pointerId);
-        }
-
+        function onDown(e) { isDragging = true; lastX = e.clientX; lastY = e.clientY; velocity = 0; e.currentTarget.setPointerCapture(e.pointerId); }
         function onMove(e) {
             if(!isDragging) return;
             const total = imageElements.length;
             const idx = (Math.floor(currentPos) % total + total) % total;
-            
-            const dx = e.clientX - lastX;
-            const dy = e.clientY - lastY;
-
-            if(isEditScreen) {
-                offsets[idx].x += dx * 2;
-                offsets[idx].y += dy * 2;
-            } else {
-                velocity = dx / 15;
-                currentPos -= velocity;
-            }
-            lastX = e.clientX;
-            lastY = e.clientY;
-            draw();
+            const dx = e.clientX - lastX; const dy = e.clientY - lastY;
+            if(isEditScreen) { offsets[idx].x += dx * 2; offsets[idx].y += dy * 2; } 
+            else { velocity = dx / 15; currentPos -= velocity; }
+            lastX = e.clientX; lastY = e.clientY; draw();
         }
-
-        function onUp(e) {
-            isDragging = false;
-        }
+        function onUp(e) { isDragging = false; }
 
         function renderLoop() {
             if(!document.getElementById('viewer').classList.contains('active')) return;
-            
-            if(isAutoPlaying && !isEditScreen) {
-                currentPos += (imageElements.length / 180);
-                draw();
-            } else if(!isDragging && Math.abs(velocity) > 0.01) {
-                // 慣性スクロール
-                velocity *= 0.95;
-                currentPos -= velocity;
-                draw();
-            }
+            if(isAutoPlaying && !isEditScreen) { currentPos += (imageElements.length / 180); draw(); } 
+            else if(!isDragging && Math.abs(velocity) > 0.01) { velocity *= 0.95; currentPos -= velocity; draw(); }
             requestAnimationFrame(renderLoop);
         }
 
-        function toggleLoopPlay() {
-            isAutoPlaying = !isAutoPlaying;
-            document.getElementById('btn-loop').classList.toggle('btn-red', isAutoPlaying);
-        }
-
+        function toggleLoopPlay() { isAutoPlaying = !isAutoPlaying; document.getElementById('btn-loop').classList.toggle('btn-red', isAutoPlaying); }
         function stepFrame(dir) { isAutoPlaying = false; velocity = 0; currentPos = Math.round(currentPos) + dir; draw(); }
 
         async function exportToVideo() {
@@ -233,14 +248,12 @@
             if (!MediaRecorder.isTypeSupported(options.mimeType)) options = { mimeType: 'video/webm;codecs=h264' };
             const recorder = new MediaRecorder(stream, options);
             const chunks = [];
-            document.getElementById('loading-overlay').style.display = 'flex';
             isAutoPlaying = true; currentPos = 0;
             recorder.ondataavailable = e => chunks.push(e.data);
             recorder.onstop = () => {
                 const blob = new Blob(chunks, { type: 'video/mp4' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a'); a.href = url; a.download = `TOUCH_${Date.now()}.mp4`; a.click();
-                document.getElementById('loading-overlay').style.display = 'none';
                 isAutoPlaying = false;
             };
             recorder.start();
