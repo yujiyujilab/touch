@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>TOUCH FULL</title>
+    <title>TOUCH REBORN</title>
     <style>
         :root { --bg-color: #000; --text-color: #fff; --accent-color: #ff3b30; --card-bg: #1c1c1e; }
         body { margin: 0; padding: 0; background: var(--bg-color); color: var(--text-color); font-family: -apple-system, sans-serif; overflow: hidden; -webkit-user-select: none; }
@@ -14,17 +14,12 @@
         .btn-red { background: var(--accent-color) !important; font-weight: bold; }
         .mini-btn { background: #333; color: #fff; border: 1px solid #444; padding: 10px; border-radius: 10px; font-size: 0.75rem; flex: 1; text-align: center; }
         .nav-row { display: flex; width: 92%; justify-content: space-around; margin-top: auto; padding-bottom: calc(20px + env(safe-area-inset-bottom)); gap: 10px; }
-        
-        /* Viewer Area */
-        #viewer-area { width: 100vw; height: 100vw; max-height: 60vh; background: #000; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-        #view-canvas { width: 100%; height: 100%; object-fit: cover; }
-        
-        /* Capture Controls */
+        #viewer-area { width: 100vw; height: 100vw; max-height: 60vh; background: #000; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; touch-action: none; }
+        #view-canvas { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
         #capture-controls { flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; gap: 20px; }
         .shutter-row { display: flex; align-items: center; gap: 30px; }
         .side-icon { width: 44px; height: 44px; background: #2c2c2e; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: #fff; }
         #shutter { width: 70px; height: 70px; border-radius: 50%; background: #fff; border: 5px solid #333; box-shadow: 0 0 0 2px #fff; }
-
         #lib-list { width: 92%; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 10px 0; }
         .lib-item { background: var(--card-bg); padding: 10px; border-radius: 14px; display: flex; align-items: center; gap: 10px; }
         .thumb { width: 50px; height: 50px; border-radius: 8px; object-fit: cover; }
@@ -46,14 +41,17 @@
             <div class="shutter-row">
                 <div class="side-icon" onclick="document.getElementById('file-input').click()">＋</div>
                 <div id="shutter" onclick="captureFrame()"></div>
-                <div class="side-icon" style="visibility:hidden;"></div> </div>
+                <div class="side-icon" style="visibility:hidden;"></div>
+            </div>
             <input type="file" id="file-input" multiple accept="image/*" style="display:none" onchange="handleFileSelect(event)">
             <div class="nav-row"><button class="mini-btn" onclick="nav('home')">BACK</button><button class="mini-btn btn-red" onclick="startViewer(true)">DONE</button></div>
         </div>
     </div>
 
     <div id="viewer" class="screen">
-        <div id="viewer-area"><canvas id="view-canvas"></canvas></div>
+        <div id="viewer-area" onpointerdown="onDown(event)" onpointermove="onMove(event)" onpointerup="onUp(event)" onpointercancel="onUp(event)">
+            <canvas id="view-canvas"></canvas>
+        </div>
         <div style="flex-grow:1; display:flex; flex-direction:column; align-items:center; width:100%; padding-top:10px;">
             <div id="preview-ui" style="width:90%; display:flex; flex-direction:column; gap:10px;">
                 <div style="display:flex; gap:8px;"><div id="btn-loop" class="mini-btn" onclick="toggleLoopPlay()">LOOP: OFF</div><div class="mini-btn" onclick="stepFrame(-1)">◀ STEP</div><div class="mini-btn" onclick="stepFrame(1)">STEP ▶</div></div>
@@ -74,10 +72,7 @@
         <div class="nav-row"><button class="btn" onclick="nav('home')" style="width:90%">HOME</button></div>
     </div>
 
-    <div id="loading-overlay">
-        <div style="font-size:1.2rem; font-weight:bold; color:#fff;">RECORDING MP4...</div>
-    </div>
-
+    <div id="loading-overlay"><div style="font-size:1.2rem; font-weight:bold; color:#fff;">RECORDING MP4...</div></div>
     <canvas id="buffer" style="display:none;"></canvas>
 
     <script>
@@ -97,12 +92,10 @@
             if(id === 'library') renderLibraryList();
         }
 
-        // --- 既存画像取り込みロジック ---
         async function handleFileSelect(event) {
             const files = Array.from(event.target.files);
             if (files.length === 0) return;
             files.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true}));
-
             for (let file of files) {
                 const dataUrl = await new Promise(res => {
                     const reader = new FileReader();
@@ -113,7 +106,7 @@
                 offsets.push({x:0, y:0});
             }
             document.getElementById('counter').innerText = `${capturedImages.length} FRAMES`;
-            event.target.value = ""; // リセット
+            event.target.value = "";
         }
 
         async function initCamera() {
@@ -144,12 +137,12 @@
             imageElements = await Promise.all(capturedImages.map(src => {
                 return new Promise(res => { const img = new Image(); img.onload = () => res(img); img.src = src; });
             }));
-            currentPos = 0; isAutoPlaying = false;
+            currentPos = 0; velocity = 0; isAutoPlaying = false;
             setMode('preview');
             document.getElementById('save-controls').style.display = isNew ? 'flex' : 'none';
             document.getElementById('lib-nav-controls').style.display = isNew ? 'none' : 'flex';
             nav('viewer');
-            renderLoop();
+            requestAnimationFrame(renderLoop);
         }
 
         function setMode(mode) {
@@ -161,9 +154,11 @@
 
         function draw() {
             const canvas = document.getElementById('view-canvas');
+            if(!canvas) return;
             const ctx = canvas.getContext('2d');
             canvas.width = 800; canvas.height = 800;
             const total = imageElements.length;
+            if(total === 0) return;
             const idx = (Math.floor(currentPos) % total + total) % total;
             ctx.fillStyle = "#000"; ctx.fillRect(0,0,800,800);
             if(isEditScreen) {
@@ -176,31 +171,60 @@
             ctx.drawImage(imageElements[idx], offsets[idx].x, offsets[idx].y, 800, 800);
         }
 
+        // --- 操作ロジックの修正 ---
+        function onDown(e) {
+            isDragging = true;
+            lastX = e.clientX;
+            lastY = e.clientY;
+            velocity = 0;
+            e.currentTarget.setPointerCapture(e.pointerId);
+        }
+
+        function onMove(e) {
+            if(!isDragging) return;
+            const total = imageElements.length;
+            const idx = (Math.floor(currentPos) % total + total) % total;
+            
+            const dx = e.clientX - lastX;
+            const dy = e.clientY - lastY;
+
+            if(isEditScreen) {
+                offsets[idx].x += dx * 2;
+                offsets[idx].y += dy * 2;
+            } else {
+                velocity = dx / 15;
+                currentPos -= velocity;
+            }
+            lastX = e.clientX;
+            lastY = e.clientY;
+            draw();
+        }
+
+        function onUp(e) {
+            isDragging = false;
+        }
+
+        function renderLoop() {
+            if(!document.getElementById('viewer').classList.contains('active')) return;
+            
+            if(isAutoPlaying && !isEditScreen) {
+                currentPos += (imageElements.length / 180);
+                draw();
+            } else if(!isDragging && Math.abs(velocity) > 0.01) {
+                // 慣性スクロール
+                velocity *= 0.95;
+                currentPos -= velocity;
+                draw();
+            }
+            requestAnimationFrame(renderLoop);
+        }
+
         function toggleLoopPlay() {
             isAutoPlaying = !isAutoPlaying;
             document.getElementById('btn-loop').classList.toggle('btn-red', isAutoPlaying);
         }
 
-        function stepFrame(dir) { isAutoPlaying = false; currentPos = Math.round(currentPos) + dir; draw(); }
-
-        const vArea = document.getElementById('viewer-area');
-        vArea.onpointerdown = e => { isDragging = true; lastX = e.clientX; lastY = e.clientY; velocity = 0; vArea.setPointerCapture(e.pointerId); };
-        vArea.onpointermove = e => {
-            if(!isDragging || isAutoPlaying) return;
-            const idx = (Math.floor(currentPos) % imageElements.length + imageElements.length) % imageElements.length;
-            if(isEditScreen) { offsets[idx].x += (e.clientX - lastX) * 2; offsets[idx].y += (e.clientY - lastY) * 2; }
-            else { velocity = (e.clientX - lastX) / 10; currentPos += velocity; }
-            draw(); lastX = e.clientX; lastY = e.clientY;
-        };
-        vArea.onpointerup = () => isDragging = false;
-
-        function renderLoop() {
-            if(document.getElementById('viewer').classList.contains('active')) {
-                if(isAutoPlaying && !isEditScreen) { currentPos += (imageElements.length / 120); draw(); }
-                else if(!isDragging && Math.abs(velocity) > 0.01) { velocity *= 0.95; currentPos += velocity; draw(); }
-            }
-            requestAnimationFrame(renderLoop);
-        }
+        function stepFrame(dir) { isAutoPlaying = false; velocity = 0; currentPos = Math.round(currentPos) + dir; draw(); }
 
         async function exportToVideo() {
             const canvas = document.getElementById('view-canvas');
