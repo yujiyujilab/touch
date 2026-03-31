@@ -3,23 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>TOUCH VIDEO</title>
+    <title>TOUCH MP4</title>
     <style>
         :root { --bg-color: #000; --text-color: #fff; --accent-color: #ff3b30; --card-bg: #1c1c1e; }
         body { margin: 0; padding: 0; background: var(--bg-color); color: var(--text-color); font-family: -apple-system, sans-serif; overflow: hidden; -webkit-user-select: none; }
         .screen { display: none; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; flex-direction: column; align-items: center; }
         .screen.active { display: flex; }
         h1 { font-size: 4.5rem; font-weight: 900; letter-spacing: 0.2em; margin: 12vh 0 1rem 0.2em; }
+        
+        /* UI Components */
         .btn { background: #2c2c2e; color: #fff; padding: 18px; font-size: 1rem; border-radius: 14px; margin: 8px; cursor: pointer; width: 85%; max-width: 320px; text-align: center; border: none; }
         .btn-red { background: var(--accent-color) !important; font-weight: bold; }
         .mini-btn { background: #333; color: #fff; border: 1px solid #444; padding: 10px; border-radius: 10px; font-size: 0.75rem; flex: 1; text-align: center; }
         .nav-row { display: flex; width: 92%; justify-content: space-around; margin-top: auto; padding-bottom: calc(20px + env(safe-area-inset-bottom)); gap: 10px; }
-        #viewer-area { width: 100vw; height: 60vh; background: #000; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-        canvas, .viewer-layer { width: 100%; height: 100%; object-fit: cover; position: absolute; }
+        
+        /* Viewer Area (Square) */
+        #viewer-area { width: 100vw; height: 100vw; max-height: 60vh; background: #000; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        #view-canvas, .viewer-layer { width: 100%; height: 100%; object-fit: cover; }
+        
+        /* Library */
         #lib-list { width: 92%; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 10px 0; }
         .lib-item { background: var(--card-bg); padding: 10px; border-radius: 14px; display: flex; align-items: center; gap: 10px; }
         .thumb { width: 50px; height: 50px; border-radius: 8px; object-fit: cover; }
-        #loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 3000; flex-direction: column; align-items: center; justify-content: center; }
+
+        /* Recording Overlay */
+        #loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); z-index: 3000; flex-direction: column; align-items: center; justify-content: center; }
+        .rec-dot { width: 15px; height: 15px; background: red; border-radius: 50%; margin-bottom: 10px; animation: blink 1s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
     </style>
 </head>
 <body>
@@ -40,19 +50,17 @@
     </div>
 
     <div id="viewer" class="screen">
-        <div id="viewer-area">
-            <canvas id="view-canvas"></canvas>
-        </div>
+        <div id="viewer-area"><canvas id="view-canvas"></canvas></div>
         <div style="flex-grow:1; display:flex; flex-direction:column; align-items:center; width:100%; padding-top:10px;">
             <div id="preview-ui" style="width:90%; display:flex; flex-direction:column; gap:10px;">
                 <div style="display:flex; gap:8px;"><div id="btn-loop" class="mini-btn" onclick="toggleLoopPlay()">LOOP: OFF</div><div class="mini-btn" onclick="stepFrame(-1)">◀ STEP</div><div class="mini-btn" onclick="stepFrame(1)">STEP ▶</div></div>
                 <div style="display:flex; gap:8px;">
                     <div class="mini-btn" style="background:#222;" onclick="setMode('edit')">EDIT (ALIGN)</div>
-                    <div class="mini-btn" style="background:var(--accent-color); font-weight:bold;" onclick="exportToVideo()">🎬 SAVE VIDEO</div>
+                    <div class="mini-btn" style="background:var(--accent-color); font-weight:bold;" onclick="exportToVideo()">🎬 SAVE MP4</div>
                 </div>
             </div>
             <div id="edit-ui" style="width:90%; display:none; flex-direction:column; align-items:center; gap:10px;">
-                <div id="frame-counter" style="font-family:monospace;">[0 / 0]</div>
+                <div id="frame-counter" style="font-family:monospace; color:var(--accent-color);">[0 / 0]</div>
                 <div style="display:flex; gap:8px; width:100%;"><div class="mini-btn" onclick="resetOffset()">RESET</div><div class="mini-btn" style="background:#444;" onclick="setMode('preview')">EXIT</div></div>
             </div>
             <div class="nav-row" id="save-controls"><button class="mini-btn" onclick="nav('camera')">RETAKE</button><button class="mini-btn btn-red" onclick="saveToLibrary()">SAVE</button></div>
@@ -67,17 +75,17 @@
     </div>
 
     <div id="loading-overlay">
-        <div style="font-size:1.5rem; font-weight:bold; color:var(--accent-color); margin-bottom:10px;">RECORDING...</div>
-        <div style="font-size:0.8rem; color:#ccc;">画面をそのまま保存しています</div>
+        <div class="rec-dot"></div>
+        <div style="font-size:1.2rem; font-weight:bold; color:#fff;">RECORDING MP4...</div>
+        <div style="font-size:0.7rem; color:#888; margin-top:10px;">完了まで画面を閉じないでください</div>
     </div>
 
     <canvas id="buffer" style="display:none;"></canvas>
 
     <script>
-        let capturedImages = [], offsets = [], db;
+        let capturedImages = [], offsets = [], db, imageElements = [];
         let isDragging = false, isEditScreen = false, isAutoPlaying = false;
         let currentPos = 0, lastX = 0, lastY = 0, velocity = 0;
-        let imageElements = [];
 
         const request = indexedDB.open("TouchAppDB", 1);
         request.onupgradeneeded = e => { e.target.result.createObjectStore("photos", { keyPath: "id", autoIncrement: true }); };
@@ -85,7 +93,7 @@
 
         function nav(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            isAutoPlaying = false;
+            isAutoPlaying = false; velocity = 0;
             document.getElementById(id).classList.add('active');
             if(id === 'camera') initCamera(); else stopCamera();
             if(id === 'library') renderLibraryList();
@@ -94,7 +102,7 @@
         async function initCamera() {
             capturedImages = []; offsets = []; 
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 1280, height: 1280 } });
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 1000, height: 1000 } });
                 document.getElementById('video').srcObject = stream;
             } catch (e) { alert("Camera Error"); }
         }
@@ -116,11 +124,9 @@
 
         async function startViewer(isNew) {
             if(capturedImages.length < 2) return;
-            // 画像要素をあらかじめ生成してキャッシュ（高速化）
             imageElements = await Promise.all(capturedImages.map(src => {
                 return new Promise(res => { const img = new Image(); img.onload = () => res(img); img.src = src; });
             }));
-            
             currentPos = 0; isAutoPlaying = false;
             setMode('preview');
             document.getElementById('save-controls').style.display = isNew ? 'flex' : 'none';
@@ -140,21 +146,15 @@
             const canvas = document.getElementById('view-canvas');
             const ctx = canvas.getContext('2d');
             canvas.width = 800; canvas.height = 800;
-            
             const total = imageElements.length;
             const idx = (Math.floor(currentPos) % total + total) % total;
-
-            ctx.fillStyle = "#000";
-            ctx.fillRect(0,0,800,800);
-
-            // EDITモードなら1枚前を薄く表示（オニオンスキン）
+            ctx.fillStyle = "#000"; ctx.fillRect(0,0,800,800);
             if(isEditScreen) {
                 ctx.globalAlpha = 0.4;
                 const pIdx = (idx - 1 + total) % total;
                 ctx.drawImage(imageElements[pIdx], offsets[pIdx].x, offsets[pIdx].y, 800, 800);
                 document.getElementById('frame-counter').innerText = `[ ${idx+1}/${total} ]`;
             }
-
             ctx.globalAlpha = 1.0;
             ctx.drawImage(imageElements[idx], offsets[idx].x, offsets[idx].y, 800, 800);
         }
@@ -171,14 +171,9 @@
         vArea.onpointermove = e => {
             if(!isDragging || isAutoPlaying) return;
             const idx = (Math.floor(currentPos) % imageElements.length + imageElements.length) % imageElements.length;
-            if(isEditScreen) { 
-                // Canvas内での移動なので比率を調整
-                offsets[idx].x += (e.clientX - lastX) * 2; 
-                offsets[idx].y += (e.clientY - lastY) * 2; 
-            }
+            if(isEditScreen) { offsets[idx].x += (e.clientX - lastX) * 2; offsets[idx].y += (e.clientY - lastY) * 2; }
             else { velocity = (e.clientX - lastX) / 10; currentPos += velocity; }
-            draw();
-            lastX = e.clientX; lastY = e.clientY;
+            draw(); lastX = e.clientX; lastY = e.clientY;
         };
         vArea.onpointerup = () => isDragging = false;
 
@@ -190,40 +185,44 @@
             requestAnimationFrame(renderLoop);
         }
 
-        // --- 動画保存ロジック（50%の壁を突破） ---
+        // --- SNS投稿用に互換性を高めたMP4保存 ---
         async function exportToVideo() {
             const canvas = document.getElementById('view-canvas');
-            const stream = canvas.captureStream(30); // 30fps
-            const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
+            const stream = canvas.captureStream(30);
+            
+            // 互換性のあるMIMEタイプを選択
+            let options = { mimeType: 'video/mp4' };
+            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                options = { mimeType: 'video/webm;codecs=h264' };
+            }
+
+            const recorder = new MediaRecorder(stream, options);
             const chunks = [];
 
             document.getElementById('loading-overlay').style.display = 'flex';
-            isAutoPlaying = true;
-            currentPos = 0; // 最初から再生
+            isAutoPlaying = true; currentPos = 0; 
 
             recorder.ondataavailable = e => chunks.push(e.data);
             recorder.onstop = () => {
-                const blob = new Blob(chunks, { type: 'video/webm' });
+                const blob = new Blob(chunks, { type: 'video/mp4' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `TOUCH_${Date.now()}.webm`;
+                a.download = `TOUCH_${Date.now()}.mp4`;
                 a.click();
+                
                 document.getElementById('loading-overlay').style.display = 'none';
-                alert("動画を保存しました！\n（iPhoneの場合は「ファイル」に保存されます）");
+                isAutoPlaying = false;
+                alert("MP4動画を保存しました。SNSへの投稿が可能です！");
             };
 
             recorder.start();
-            
-            // 1周分（または3秒間）録画して停止
-            setTimeout(() => {
-                recorder.stop();
-                isAutoPlaying = false;
-            }, 3000); 
+            // 1ループ（約3〜4秒）録画
+            setTimeout(() => { recorder.stop(); }, 4000); 
         }
 
         function saveToLibrary() {
-            const title = prompt("Name?", new Date().toLocaleString()); if(!title) return;
+            const title = prompt("作品名", new Date().toLocaleString()); if(!title) return;
             const tx = db.transaction(["photos"], "readwrite");
             tx.objectStore("photos").add({ title, data: capturedImages, offsets, thumb: capturedImages[0], timestamp: Date.now() }).onsuccess = () => nav('home');
         }
@@ -244,7 +243,7 @@
         }
 
         window.viewItem = id => { db.transaction(["photos"], "readonly").objectStore("photos").get(id).onsuccess = e => { const item = e.target.result; capturedImages = item.data; offsets = item.offsets; startViewer(false); }; };
-        window.deleteItem = id => { if(confirm("Delete?")) db.transaction(["photos"], "readwrite").objectStore("photos").delete(id).onsuccess = () => renderLibraryList(); };
+        window.deleteItem = id => { if(confirm("削除しますか？")) db.transaction(["photos"], "readwrite").objectStore("photos").delete(id).onsuccess = () => renderLibraryList(); };
         function resetOffset() { const idx = (Math.floor(currentPos) % imageElements.length + imageElements.length) % imageElements.length; offsets[idx] = {x:0, y:0}; draw(); }
     </script>
 </body>
