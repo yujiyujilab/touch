@@ -5,38 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>TOUCH</title>
     <style>
-        :root { --bg-color: #000; --text-color: #fff; --accent-color: #ff3b30; --safe-color: #4cd964; --card-bg: #1c1c1e; }
-        body { margin: 0; padding: 0; background: var(--bg-color); color: var(--text-color); font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Kaku Gothic ProN", sans-serif; overflow: hidden; -webkit-user-select: none; user-select: none; }
+        :root { --bg-color: #000; --text-color: #fff; --accent-color: #ff3b30; --card-bg: #1c1c1e; }
+        body { margin: 0; padding: 0; background: var(--bg-color); color: var(--text-color); font-family: -apple-system, sans-serif; overflow: hidden; -webkit-user-select: none; }
         .screen { display: none; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; flex-direction: column; align-items: center; }
         .screen.active { display: flex; }
         h1 { font-size: 4.5rem; font-weight: 900; letter-spacing: 0.2em; margin: 12vh 0 1rem 0.2em; }
-        
-        /* UI Components */
         .btn { background: #2c2c2e; color: #fff; padding: 18px; font-size: 1rem; border-radius: 14px; margin: 8px; cursor: pointer; width: 85%; max-width: 320px; text-align: center; border: none; }
         .btn-red { background: var(--accent-color) !important; font-weight: bold; }
-        .mini-btn { background: #333; color: #fff; border: 1px solid #444; padding: 10px; border-radius: 10px; font-size: 0.75rem; flex: 1; text-align: center; cursor: pointer; }
+        .mini-btn { background: #333; color: #fff; border: 1px solid #444; padding: 10px; border-radius: 10px; font-size: 0.75rem; flex: 1; text-align: center; }
         .nav-row { display: flex; width: 92%; justify-content: space-around; margin-top: auto; padding-bottom: calc(20px + env(safe-area-inset-bottom)); gap: 10px; }
-        
-        /* Viewer Area */
-        #camera-container, #viewer-area { width: 100vw; height: 60vh; background: #000; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-        video, .viewer-layer { width: 100%; height: 100%; object-fit: cover; position: absolute; }
-        #current-layer { z-index: 10; touch-action: none; }
-        #onion-layer { z-index: 5; opacity: 0.4; display: none; }
-        
-        /* Library List */
+        #viewer-area { width: 100vw; height: 60vh; background: #000; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        .viewer-layer { width: 100%; height: 100%; object-fit: cover; position: absolute; }
         #lib-list { width: 92%; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 10px 0; }
-        .lib-item { background: var(--card-bg); padding: 10px; border-radius: 14px; display: flex; align-items: center; gap: 10px; border: 1px solid #333; }
-        .thumb { width: 50px; height: 50px; border-radius: 8px; object-fit: cover; background: #000; }
-        .item-info { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
-        .item-title { font-weight: bold; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .item-meta { font-size: 0.7rem; color: #888; margin-top: 2px; }
-
-        /* Progress Overlay */
-        #loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.9); z-index: 2000; flex-direction: column; align-items: center; justify-content: center; }
-        .progress-box { width: 80%; max-width: 300px; text-align: center; }
-        .progress-bar-bg { width: 100%; height: 6px; background: #333; border-radius: 3px; margin: 15px 0; overflow: hidden; }
+        .lib-item { background: var(--card-bg); padding: 10px; border-radius: 14px; display: flex; align-items: center; gap: 10px; }
+        .thumb { width: 50px; height: 50px; border-radius: 8px; object-fit: cover; }
+        #loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.95); z-index: 3000; flex-direction: column; align-items: center; justify-content: center; }
+        .progress-bar-bg { width: 70%; height: 6px; background: #333; border-radius: 3px; margin: 15px 0; overflow: hidden; }
         #progress-bar-fill { width: 0%; height: 100%; background: var(--accent-color); transition: width 0.1s; }
-        #progress-text { font-family: monospace; font-size: 2rem; color: var(--accent-color); font-weight: bold; }
     </style>
 </head>
 <body>
@@ -48,99 +33,65 @@
     </div>
 
     <div id="camera" class="screen">
-        <div id="camera-container">
-            <video id="video" autoplay playsinline muted></video>
-        </div>
-        <div style="flex-grow:1; display:flex; flex-direction:column; align-items:center; width:100%; background:#000;">
+        <div id="viewer-area"><video id="video" autoplay playsinline muted style="width:100%; height:100%; object-fit:cover;"></video></div>
+        <div style="flex-grow:1; display:flex; flex-direction:column; align-items:center; width:100%;">
             <div id="counter" style="color:#666; font-size:0.7rem; margin:10px 0;">0 FRAMES</div>
-            <div id="shutter" style="width:65px; height:65px; border-radius:50%; background:#fff; border:5px solid #333; box-shadow: 0 0 10px rgba(255,255,255,0.2);" onclick="captureFrame()"></div>
-            <div class="nav-row">
-                <button class="mini-btn" onclick="nav('home')">BACK</button>
-                <button class="mini-btn btn-red" onclick="startViewer(true)">DONE</button>
-            </div>
+            <div id="shutter" style="width:65px; height:65px; border-radius:50%; background:#fff; border:5px solid #333;" onclick="captureFrame()"></div>
+            <div class="nav-row"><button class="mini-btn" onclick="nav('home')">BACK</button><button class="mini-btn btn-red" onclick="startViewer(true)">DONE</button></div>
         </div>
     </div>
 
     <div id="viewer" class="screen">
-        <div id="viewer-area">
-            <img id="onion-layer" class="viewer-layer">
-            <img id="current-layer" class="viewer-layer">
-        </div>
-        <div style="flex-grow:1; display:flex; flex-direction:column; align-items:center; width:100%; background:#000; padding-top:10px;">
+        <div id="viewer-area"><img id="onion-layer" class="viewer-layer" style="display:none; opacity:0.4;"><img id="current-layer" class="viewer-layer"></div>
+        <div style="flex-grow:1; display:flex; flex-direction:column; align-items:center; width:100%; padding-top:10px;">
             <div id="preview-ui" style="width:90%; display:flex; flex-direction:column; gap:10px;">
-                <div style="display:flex; gap:8px;">
-                    <div id="btn-loop" class="mini-btn" onclick="toggleLoopPlay()">LOOP: OFF</div>
-                    <div class="mini-btn" onclick="stepFrame(-1)">◀ STEP</div>
-                    <div class="mini-btn" onclick="stepFrame(1)">STEP ▶</div>
-                </div>
-                <div style="display:flex; gap:8px;">
-                    <div class="mini-btn" style="background:#222;" onclick="setMode('edit')">EDIT (ALIGN)</div>
-                    <div class="mini-btn" style="background:#222;" onclick="exportToGif()">🎬 MAKE GIF</div>
-                </div>
+                <div style="display:flex; gap:8px;"><div id="btn-loop" class="mini-btn" onclick="toggleLoopPlay()">LOOP: OFF</div><div class="mini-btn" onclick="stepFrame(-1)">◀ STEP</div><div class="mini-btn" onclick="stepFrame(1)">STEP ▶</div></div>
+                <div style="display:flex; gap:8px;"><div class="mini-btn" style="background:#222;" onclick="setMode('edit')">EDIT (ALIGN)</div><div class="mini-btn" style="background:#222;" onclick="exportToGif()">🎬 MAKE GIF</div></div>
             </div>
             <div id="edit-ui" style="width:90%; display:none; flex-direction:column; align-items:center; gap:10px;">
                 <div id="frame-counter" style="font-family:monospace; color:var(--accent-color);">[0 / 0]</div>
-                <div style="display:flex; gap:8px; width:100%;">
-                    <div class="mini-btn" onclick="resetOffset()">RESET</div>
-                    <div class="mini-btn" style="background:#444;" onclick="setMode('preview')">EXIT</div>
-                </div>
+                <div style="display:flex; gap:8px; width:100%;"><div class="mini-btn" onclick="resetOffset()">RESET</div><div class="mini-btn" style="background:#444;" onclick="setMode('preview')">EXIT</div></div>
             </div>
-            <div class="nav-row" id="save-controls">
-                <button class="mini-btn" onclick="nav('camera')">RETAKE</button>
-                <button class="mini-btn btn-red" onclick="saveToLibrary()">SAVE</button>
-            </div>
-            <div class="nav-row" id="lib-nav-controls" style="display:none;">
-                <button class="mini-btn" onclick="nav('home')">HOME</button>
-                <button class="mini-btn" onclick="nav('library')">BACK</button>
-            </div>
+            <div class="nav-row" id="save-controls"><button class="mini-btn" onclick="nav('camera')">RETAKE</button><button class="mini-btn btn-red" onclick="saveToLibrary()">SAVE</button></div>
+            <div class="nav-row" id="lib-nav-controls" style="display:none;"><button class="mini-btn" onclick="nav('home')">HOME</button><button class="mini-btn" onclick="nav('library')">BACK</button></div>
         </div>
     </div>
 
     <div id="library" class="screen">
-        <div style="width:92%; margin-top:50px; display:flex; justify-content:space-between; align-items:center;">
-            <h2 style="margin:0;">LIBRARY</h2>
-        </div>
+        <div style="width:92%; margin-top:50px;"><h2>LIBRARY</h2></div>
         <div id="lib-list"></div>
         <div class="nav-row"><button class="btn" onclick="nav('home')" style="width:90%">HOME</button></div>
     </div>
 
     <div id="loading-overlay">
-        <div class="progress-box">
-            <div id="progress-text">0%</div>
-            <div class="progress-bar-bg"><div id="progress-bar-fill"></div></div>
-            <div id="loading-status" style="font-size: 0.8rem; color:#888;">PROCESSING...</div>
-        </div>
+        <div id="progress-text" style="font-size:2.5rem; font-weight:bold; color:var(--accent-color);">0%</div>
+        <div class="progress-bar-bg"><div id="progress-bar-fill"></div></div>
+        <div style="font-size:0.7rem; color:#888;">GENERATING GIF...</div>
     </div>
 
     <canvas id="buffer" style="display:none;"></canvas>
-    <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/gifshot@0.4.5/build/gifshot.min.js"></script>
 
     <script>
         let capturedImages = [], offsets = [], db;
         let isDragging = false, isEditScreen = false, isAutoPlaying = false;
         let currentPos = 0, lastX = 0, lastY = 0, velocity = 0;
 
-        // DB Initialization
         const request = indexedDB.open("TouchAppDB", 1);
         request.onupgradeneeded = e => { e.target.result.createObjectStore("photos", { keyPath: "id", autoIncrement: true }); };
         request.onsuccess = e => { db = e.target.result; };
 
-        // Navigation with auto-load for library
         function nav(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             isAutoPlaying = false; velocity = 0;
-            const lb = document.getElementById('btn-loop');
-            if(lb) { lb.innerText = "LOOP: OFF"; lb.classList.remove('btn-red'); }
-            
             document.getElementById(id).classList.add('active');
-            
             if(id === 'camera') initCamera(); else stopCamera();
             if(id === 'library') renderLibraryList();
         }
 
         async function initCamera() {
             capturedImages = []; offsets = []; 
-            document.getElementById('counter').innerText = `0 FRAMES`;
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 1280, height: 1280 } });
                 document.getElementById('video').srcObject = stream;
@@ -189,15 +140,13 @@
                 const pIdx = (idx - 1 + total) % total;
                 document.getElementById('onion-layer').src = capturedImages[pIdx];
                 document.getElementById('onion-layer').style.transform = `translate(${offsets[pIdx].x}px, ${offsets[pIdx].y}px)`;
-                document.getElementById('frame-counter').innerText = `[ ${idx + 1} / ${total} ]`;
+                document.getElementById('frame-counter').innerText = `[ ${idx+1}/${total} ]`;
             }
         }
 
         function toggleLoopPlay() {
             isAutoPlaying = !isAutoPlaying;
-            const btn = document.getElementById('btn-loop');
-            btn.innerText = isAutoPlaying ? "LOOP: ON" : "LOOP: OFF";
-            btn.classList.toggle('btn-red', isAutoPlaying);
+            document.getElementById('btn-loop').classList.toggle('btn-red', isAutoPlaying);
             if(isAutoPlaying) animate();
         }
 
@@ -209,8 +158,8 @@
         vArea.onpointermove = e => {
             if(!isDragging || isAutoPlaying) return;
             const idx = (Math.floor(currentPos) % capturedImages.length + capturedImages.length) % capturedImages.length;
-            if(isEditScreen) { offsets[idx].x += (e.clientX - lastX); offsets[idx].y += (e.clientY - lastY); updateImage(); }
-            else { velocity = (e.clientX - lastX) / 10; currentPos += velocity; updateImage(); }
+            if(isEditScreen) { offsets[idx].x += (e.clientX-lastX); offsets[idx].y += (e.clientY-lastY); updateImage(); }
+            else { velocity = (e.clientX-lastX)/10; currentPos += velocity; updateImage(); }
             lastX = e.clientX; lastY = e.clientY;
         };
         vArea.onpointerup = () => isDragging = false;
@@ -222,9 +171,8 @@
             requestAnimationFrame(renderLoop);
         }
 
-        // Library Management
         function saveToLibrary() {
-            const title = prompt("作品名", new Date().toLocaleString()); if(!title) return;
+            const title = prompt("Name?", new Date().toLocaleString()); if(!title) return;
             const tx = db.transaction(["photos"], "readwrite");
             tx.objectStore("photos").add({ title, data: capturedImages, offsets, thumb: capturedImages[0], timestamp: Date.now() }).onsuccess = () => nav('home');
         }
@@ -236,57 +184,67 @@
                 if(cursor) {
                     const item = cursor.value;
                     const div = document.createElement('div'); div.className = 'lib-item';
-                    div.innerHTML = `<img src="${item.thumb}" class="thumb">
-                        <div class="item-info"><span class="item-title">${item.title}</span><span class="item-meta">${item.data.length} frames</span></div>
+                    div.innerHTML = `<img src="${item.thumb}" class="thumb"><div class="item-info"><b>${item.title}</b></div>
                         <button class="mini-btn" onclick="viewItem(${item.id})">▶</button>
-                        <button class="mini-btn" style="color:#666; border:none;" onclick="deleteItem(${item.id})">🗑</button>`;
+                        <button class="mini-btn" style="color:#666;" onclick="deleteItem(${item.id})">🗑</button>`;
                     list.appendChild(div); cursor.continue();
                 }
             };
         }
 
         window.viewItem = id => { db.transaction(["photos"], "readonly").objectStore("photos").get(id).onsuccess = e => { const item = e.target.result; capturedImages = item.data; offsets = item.offsets; startViewer(false); }; };
-        window.deleteItem = id => { if(confirm("削除しますか？")) db.transaction(["photos"], "readwrite").objectStore("photos").delete(id).onsuccess = () => renderLibraryList(); };
+        window.deleteItem = id => { if(confirm("Delete?")) db.transaction(["photos"], "readwrite").objectStore("photos").delete(id).onsuccess = () => renderLibraryList(); };
 
-        // GIF Export with 100% bypass (workers: 0)
+        // --- 刷新されたGIF生成ロジック ---
         async function exportToGif() {
             const overlay = document.getElementById('loading-overlay');
             const bar = document.getElementById('progress-bar-fill');
             const text = document.getElementById('progress-text');
-            const status = document.getElementById('loading-status');
             
-            overlay.style.display = 'flex'; bar.style.width = '0%'; text.innerText = '0%'; status.innerText = "PREPARING...";
+            overlay.style.display = 'flex';
+            bar.style.width = '10%'; text.innerText = '10%';
 
-            const gif = new GIF({ workers: 0, quality: 10, width: 320, height: 320 });
-            const canvas = document.getElementById('buffer');
-            const ctx = canvas.getContext('2d');
-            canvas.width = 320; canvas.height = 320;
-            
+            // 調整された画像を作成
+            const processedImages = [];
             for(let i=0; i<capturedImages.length; i++) {
                 const img = await new Promise(res => { const im = new Image(); im.onload = () => res(im); im.src = capturedImages[i]; });
+                const canvas = document.createElement('canvas');
+                canvas.width = 320; canvas.height = 320;
+                const ctx = canvas.getContext('2d');
                 ctx.fillStyle = "#000"; ctx.fillRect(0,0,320,320);
                 ctx.drawImage(img, offsets[i].x/4, offsets[i].y/4, 320, 320);
-                gif.addFrame(ctx, {copy: true, delay: 80});
+                processedImages.push(canvas.toDataURL('image/jpeg'));
                 
-                let p = Math.round(((i + 1) / capturedImages.length) * 50);
+                let p = Math.round(((i + 1) / capturedImages.length) * 40) + 10;
                 bar.style.width = p + "%"; text.innerText = p + "%";
             }
 
-            status.innerText = "RENDERING...";
-            gif.on('progress', (prog) => { 
-                let p2 = 50 + Math.round(prog * 50);
-                bar.style.width = p2 + "%"; text.innerText = p2 + "%"; 
+            // gifshotライブラリを使用（より堅牢でブラウザ制限に強い）
+            gifshot.createGIF({
+                images: processedImages,
+                gifWidth: 320,
+                gifHeight: 320,
+                interval: 0.08,
+                numFrames: processedImages.length,
+                progressCallback: (p) => {
+                    let prog = 50 + Math.round(p * 50);
+                    bar.style.width = prog + "%"; text.innerText = prog + "%";
+                }
+            }, function(obj) {
+                if(!obj.error) {
+                    overlay.style.display = 'none';
+                    const link = document.createElement('a');
+                    link.href = obj.image;
+                    link.download = `TOUCH_${Date.now()}.gif`;
+                    link.click();
+                    // iPhone/Android用の表示
+                    const win = window.open();
+                    win.document.write('<iframe src="' + obj.image + '" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>');
+                } else {
+                    alert("GIF error: " + obj.error);
+                    overlay.style.display = 'none';
+                }
             });
-
-            gif.on('finished', blob => { 
-                overlay.style.display = 'none'; 
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a'); a.href = url; a.download = `TOUCH_${Date.now()}.gif`; a.click();
-                window.open(url, '_blank'); 
-                alert("GIFが完成しました！"); 
-            });
-
-            setTimeout(() => gif.render(), 100);
         }
 
         function resetOffset() { offsets[getIdx()] = {x:0, y:0}; updateImage(); }
