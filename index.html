@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>TOUCH</title>
+    <title>TOUCH VIDEO</title>
     <style>
         :root { --bg-color: #000; --text-color: #fff; --accent-color: #ff3b30; --card-bg: #1c1c1e; }
         body { margin: 0; padding: 0; background: var(--bg-color); color: var(--text-color); font-family: -apple-system, sans-serif; overflow: hidden; -webkit-user-select: none; }
@@ -15,13 +15,11 @@
         .mini-btn { background: #333; color: #fff; border: 1px solid #444; padding: 10px; border-radius: 10px; font-size: 0.75rem; flex: 1; text-align: center; }
         .nav-row { display: flex; width: 92%; justify-content: space-around; margin-top: auto; padding-bottom: calc(20px + env(safe-area-inset-bottom)); gap: 10px; }
         #viewer-area { width: 100vw; height: 60vh; background: #000; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-        .viewer-layer { width: 100%; height: 100%; object-fit: cover; position: absolute; }
+        canvas, .viewer-layer { width: 100%; height: 100%; object-fit: cover; position: absolute; }
         #lib-list { width: 92%; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 10px 0; }
         .lib-item { background: var(--card-bg); padding: 10px; border-radius: 14px; display: flex; align-items: center; gap: 10px; }
         .thumb { width: 50px; height: 50px; border-radius: 8px; object-fit: cover; }
-        #loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.95); z-index: 3000; flex-direction: column; align-items: center; justify-content: center; }
-        .progress-bar-bg { width: 70%; height: 6px; background: #333; border-radius: 3px; margin: 15px 0; overflow: hidden; }
-        #progress-bar-fill { width: 0%; height: 100%; background: var(--accent-color); transition: width 0.1s; }
+        #loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 3000; flex-direction: column; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
@@ -42,14 +40,19 @@
     </div>
 
     <div id="viewer" class="screen">
-        <div id="viewer-area"><img id="onion-layer" class="viewer-layer" style="display:none; opacity:0.4;"><img id="current-layer" class="viewer-layer"></div>
+        <div id="viewer-area">
+            <canvas id="view-canvas"></canvas>
+        </div>
         <div style="flex-grow:1; display:flex; flex-direction:column; align-items:center; width:100%; padding-top:10px;">
             <div id="preview-ui" style="width:90%; display:flex; flex-direction:column; gap:10px;">
                 <div style="display:flex; gap:8px;"><div id="btn-loop" class="mini-btn" onclick="toggleLoopPlay()">LOOP: OFF</div><div class="mini-btn" onclick="stepFrame(-1)">◀ STEP</div><div class="mini-btn" onclick="stepFrame(1)">STEP ▶</div></div>
-                <div style="display:flex; gap:8px;"><div class="mini-btn" style="background:#222;" onclick="setMode('edit')">EDIT (ALIGN)</div><div class="mini-btn" style="background:#222;" onclick="exportToGif()">🎬 MAKE GIF</div></div>
+                <div style="display:flex; gap:8px;">
+                    <div class="mini-btn" style="background:#222;" onclick="setMode('edit')">EDIT (ALIGN)</div>
+                    <div class="mini-btn" style="background:var(--accent-color); font-weight:bold;" onclick="exportToVideo()">🎬 SAVE VIDEO</div>
+                </div>
             </div>
             <div id="edit-ui" style="width:90%; display:none; flex-direction:column; align-items:center; gap:10px;">
-                <div id="frame-counter" style="font-family:monospace; color:var(--accent-color);">[0 / 0]</div>
+                <div id="frame-counter" style="font-family:monospace;">[0 / 0]</div>
                 <div style="display:flex; gap:8px; width:100%;"><div class="mini-btn" onclick="resetOffset()">RESET</div><div class="mini-btn" style="background:#444;" onclick="setMode('preview')">EXIT</div></div>
             </div>
             <div class="nav-row" id="save-controls"><button class="mini-btn" onclick="nav('camera')">RETAKE</button><button class="mini-btn btn-red" onclick="saveToLibrary()">SAVE</button></div>
@@ -64,19 +67,17 @@
     </div>
 
     <div id="loading-overlay">
-        <div id="progress-text" style="font-size:2.5rem; font-weight:bold; color:var(--accent-color);">0%</div>
-        <div class="progress-bar-bg"><div id="progress-bar-fill"></div></div>
-        <div style="font-size:0.7rem; color:#888;">GENERATING GIF...</div>
+        <div style="font-size:1.5rem; font-weight:bold; color:var(--accent-color); margin-bottom:10px;">RECORDING...</div>
+        <div style="font-size:0.8rem; color:#ccc;">画面をそのまま保存しています</div>
     </div>
 
     <canvas id="buffer" style="display:none;"></canvas>
-    
-    <script src="https://cdn.jsdelivr.net/npm/gifshot@0.4.5/build/gifshot.min.js"></script>
 
     <script>
         let capturedImages = [], offsets = [], db;
         let isDragging = false, isEditScreen = false, isAutoPlaying = false;
         let currentPos = 0, lastX = 0, lastY = 0, velocity = 0;
+        let imageElements = [];
 
         const request = indexedDB.open("TouchAppDB", 1);
         request.onupgradeneeded = e => { e.target.result.createObjectStore("photos", { keyPath: "id", autoIncrement: true }); };
@@ -84,7 +85,7 @@
 
         function nav(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            isAutoPlaying = false; velocity = 0;
+            isAutoPlaying = false;
             document.getElementById(id).classList.add('active');
             if(id === 'camera') initCamera(); else stopCamera();
             if(id === 'library') renderLibraryList();
@@ -106,15 +107,20 @@
         function captureFrame() {
             const v = document.getElementById('video');
             const canvas = document.getElementById('buffer');
-            canvas.width = 1280; canvas.height = 1280;
-            canvas.getContext('2d').drawImage(v, 0, 0, 1280, 1280);
-            capturedImages.push(canvas.toDataURL('image/jpeg', 0.7));
+            canvas.width = 800; canvas.height = 800;
+            canvas.getContext('2d').drawImage(v, 0, 0, 800, 800);
+            capturedImages.push(canvas.toDataURL('image/jpeg', 0.8));
             offsets.push({x:0, y:0});
             document.getElementById('counter').innerText = `${capturedImages.length} FRAMES`;
         }
 
-        function startViewer(isNew) {
+        async function startViewer(isNew) {
             if(capturedImages.length < 2) return;
+            // 画像要素をあらかじめ生成してキャッシュ（高速化）
+            imageElements = await Promise.all(capturedImages.map(src => {
+                return new Promise(res => { const img = new Image(); img.onload = () => res(img); img.src = src; });
+            }));
+            
             currentPos = 0; isAutoPlaying = false;
             setMode('preview');
             document.getElementById('save-controls').style.display = isNew ? 'flex' : 'none';
@@ -127,48 +133,93 @@
             isEditScreen = (mode === 'edit');
             document.getElementById('preview-ui').style.display = isEditScreen ? 'none' : 'flex';
             document.getElementById('edit-ui').style.display = isEditScreen ? 'flex' : 'none';
-            document.getElementById('onion-layer').style.display = isEditScreen ? 'block' : 'none';
-            updateImage();
+            draw();
         }
 
-        function updateImage() {
-            const total = capturedImages.length; if(!total) return;
+        function draw() {
+            const canvas = document.getElementById('view-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 800; canvas.height = 800;
+            
+            const total = imageElements.length;
             const idx = (Math.floor(currentPos) % total + total) % total;
-            document.getElementById('current-layer').src = capturedImages[idx];
-            document.getElementById('current-layer').style.transform = `translate(${offsets[idx].x}px, ${offsets[idx].y}px)`;
+
+            ctx.fillStyle = "#000";
+            ctx.fillRect(0,0,800,800);
+
+            // EDITモードなら1枚前を薄く表示（オニオンスキン）
             if(isEditScreen) {
+                ctx.globalAlpha = 0.4;
                 const pIdx = (idx - 1 + total) % total;
-                document.getElementById('onion-layer').src = capturedImages[pIdx];
-                document.getElementById('onion-layer').style.transform = `translate(${offsets[pIdx].x}px, ${offsets[pIdx].y}px)`;
+                ctx.drawImage(imageElements[pIdx], offsets[pIdx].x, offsets[pIdx].y, 800, 800);
                 document.getElementById('frame-counter').innerText = `[ ${idx+1}/${total} ]`;
             }
+
+            ctx.globalAlpha = 1.0;
+            ctx.drawImage(imageElements[idx], offsets[idx].x, offsets[idx].y, 800, 800);
         }
 
         function toggleLoopPlay() {
             isAutoPlaying = !isAutoPlaying;
             document.getElementById('btn-loop').classList.toggle('btn-red', isAutoPlaying);
-            if(isAutoPlaying) animate();
         }
 
-        function animate() { if(isAutoPlaying && !isEditScreen) { currentPos += (capturedImages.length / 180); updateImage(); requestAnimationFrame(animate); } }
-        function stepFrame(dir) { isAutoPlaying = false; currentPos = Math.round(currentPos) + dir; updateImage(); }
+        function stepFrame(dir) { isAutoPlaying = false; currentPos = Math.round(currentPos) + dir; draw(); }
 
         const vArea = document.getElementById('viewer-area');
         vArea.onpointerdown = e => { isDragging = true; lastX = e.clientX; lastY = e.clientY; velocity = 0; vArea.setPointerCapture(e.pointerId); };
         vArea.onpointermove = e => {
             if(!isDragging || isAutoPlaying) return;
-            const idx = (Math.floor(currentPos) % capturedImages.length + capturedImages.length) % capturedImages.length;
-            if(isEditScreen) { offsets[idx].x += (e.clientX-lastX); offsets[idx].y += (e.clientY-lastY); updateImage(); }
-            else { velocity = (e.clientX-lastX)/10; currentPos += velocity; updateImage(); }
+            const idx = (Math.floor(currentPos) % imageElements.length + imageElements.length) % imageElements.length;
+            if(isEditScreen) { 
+                // Canvas内での移動なので比率を調整
+                offsets[idx].x += (e.clientX - lastX) * 2; 
+                offsets[idx].y += (e.clientY - lastY) * 2; 
+            }
+            else { velocity = (e.clientX - lastX) / 10; currentPos += velocity; }
+            draw();
             lastX = e.clientX; lastY = e.clientY;
         };
         vArea.onpointerup = () => isDragging = false;
 
         function renderLoop() {
-            if(document.getElementById('viewer').classList.contains('active') && !isAutoPlaying && !isDragging && Math.abs(velocity) > 0.01) {
-                velocity *= 0.95; currentPos += velocity; updateImage();
+            if(document.getElementById('viewer').classList.contains('active')) {
+                if(isAutoPlaying && !isEditScreen) { currentPos += (imageElements.length / 120); draw(); }
+                else if(!isDragging && Math.abs(velocity) > 0.01) { velocity *= 0.95; currentPos += velocity; draw(); }
             }
             requestAnimationFrame(renderLoop);
+        }
+
+        // --- 動画保存ロジック（50%の壁を突破） ---
+        async function exportToVideo() {
+            const canvas = document.getElementById('view-canvas');
+            const stream = canvas.captureStream(30); // 30fps
+            const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
+            const chunks = [];
+
+            document.getElementById('loading-overlay').style.display = 'flex';
+            isAutoPlaying = true;
+            currentPos = 0; // 最初から再生
+
+            recorder.ondataavailable = e => chunks.push(e.data);
+            recorder.onstop = () => {
+                const blob = new Blob(chunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `TOUCH_${Date.now()}.webm`;
+                a.click();
+                document.getElementById('loading-overlay').style.display = 'none';
+                alert("動画を保存しました！\n（iPhoneの場合は「ファイル」に保存されます）");
+            };
+
+            recorder.start();
+            
+            // 1周分（または3秒間）録画して停止
+            setTimeout(() => {
+                recorder.stop();
+                isAutoPlaying = false;
+            }, 3000); 
         }
 
         function saveToLibrary() {
@@ -194,61 +245,7 @@
 
         window.viewItem = id => { db.transaction(["photos"], "readonly").objectStore("photos").get(id).onsuccess = e => { const item = e.target.result; capturedImages = item.data; offsets = item.offsets; startViewer(false); }; };
         window.deleteItem = id => { if(confirm("Delete?")) db.transaction(["photos"], "readwrite").objectStore("photos").delete(id).onsuccess = () => renderLibraryList(); };
-
-        // --- 刷新されたGIF生成ロジック ---
-        async function exportToGif() {
-            const overlay = document.getElementById('loading-overlay');
-            const bar = document.getElementById('progress-bar-fill');
-            const text = document.getElementById('progress-text');
-            
-            overlay.style.display = 'flex';
-            bar.style.width = '10%'; text.innerText = '10%';
-
-            // 調整された画像を作成
-            const processedImages = [];
-            for(let i=0; i<capturedImages.length; i++) {
-                const img = await new Promise(res => { const im = new Image(); im.onload = () => res(im); im.src = capturedImages[i]; });
-                const canvas = document.createElement('canvas');
-                canvas.width = 320; canvas.height = 320;
-                const ctx = canvas.getContext('2d');
-                ctx.fillStyle = "#000"; ctx.fillRect(0,0,320,320);
-                ctx.drawImage(img, offsets[i].x/4, offsets[i].y/4, 320, 320);
-                processedImages.push(canvas.toDataURL('image/jpeg'));
-                
-                let p = Math.round(((i + 1) / capturedImages.length) * 40) + 10;
-                bar.style.width = p + "%"; text.innerText = p + "%";
-            }
-
-            // gifshotライブラリを使用（より堅牢でブラウザ制限に強い）
-            gifshot.createGIF({
-                images: processedImages,
-                gifWidth: 320,
-                gifHeight: 320,
-                interval: 0.08,
-                numFrames: processedImages.length,
-                progressCallback: (p) => {
-                    let prog = 50 + Math.round(p * 50);
-                    bar.style.width = prog + "%"; text.innerText = prog + "%";
-                }
-            }, function(obj) {
-                if(!obj.error) {
-                    overlay.style.display = 'none';
-                    const link = document.createElement('a');
-                    link.href = obj.image;
-                    link.download = `TOUCH_${Date.now()}.gif`;
-                    link.click();
-                    // iPhone/Android用の表示
-                    const win = window.open();
-                    win.document.write('<iframe src="' + obj.image + '" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>');
-                } else {
-                    alert("GIF error: " + obj.error);
-                    overlay.style.display = 'none';
-                }
-            });
-        }
-
-        function resetOffset() { offsets[getIdx()] = {x:0, y:0}; updateImage(); }
-        function getIdx() { return (Math.floor(currentPos) % capturedImages.length + capturedImages.length) % capturedImages.length; }
+        function resetOffset() { const idx = (Math.floor(currentPos) % imageElements.length + imageElements.length) % imageElements.length; offsets[idx] = {x:0, y:0}; draw(); }
     </script>
 </body>
 </html>
