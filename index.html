@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>TOUCH PRO</title>
+    <title>TOUCH PRO PLUS</title>
     <style>
         :root { --bg-color: #000; --text-color: #fff; --accent-color: #ff3b30; --card-bg: #1c1c1e; }
         body { margin: 0; padding: 0; background: var(--bg-color); color: var(--text-color); font-family: -apple-system, sans-serif; overflow: hidden; -webkit-user-select: none; }
@@ -15,20 +15,20 @@
         .mini-btn { background: #333; color: #fff; border: 1px solid #444; padding: 10px; border-radius: 10px; font-size: 0.75rem; flex: 1; text-align: center; }
         .nav-row { display: flex; width: 92%; justify-content: space-around; margin-top: auto; padding-bottom: calc(20px + env(safe-area-inset-bottom)); gap: 10px; }
         
-        /* Viewer / Camera Area */
         #viewer-area { width: 100vw; height: 100vw; max-height: 60vh; background: #000; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; touch-action: none; }
-        #view-canvas, #video { width: 100%; height: 100%; object-fit: cover; }
+        #view-canvas, #video { width: 100%; height: 100%; object-fit: cover; position: absolute; top:0; left:0; }
         
+        /* Onion Skin Layer */
+        #onion-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.4; pointer-events: none; display: none; }
+
         /* Guidelines */
-        #guide-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: none; border: 1px solid rgba(255,255,255,0.2); }
-        .guide-360 { position: absolute; top: 50%; left: 0; width: 100%; height: 1px; background: rgba(0,255,255,0.5); }
-        .guide-obj { position: absolute; top: 50%; left: 50%; width: 200px; height: 200px; border: 2px dashed rgba(255,255,0,0.5); border-radius: 50%; transform: translate(-50%, -50%); }
+        #guide-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: none; }
+        .line-h { position: absolute; width: 100%; height: 1px; background: rgba(0,255,255,0.4); }
+        .line-v { position: absolute; height: 100%; width: 1px; background: rgba(0,255,255,0.4); }
 
-        /* Shutter Row */
         .shutter-row { display: flex; align-items: center; gap: 30px; margin: 20px 0; }
-        #shutter { width: 70px; height: 70px; border-radius: 50%; background: #fff; border: 5px solid #333; box-shadow: 0 0 0 2px #fff; }
-        .mode-tag { background: #444; padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; color: #ccc; }
-
+        #shutter { width: 70px; height: 70px; border-radius: 50%; background: #fff; border: 5px solid #333; box-shadow: 0 0 0 2px #fff; z-index: 10; }
+        .mode-tag { background: #444; padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; color: #ccc; cursor: pointer; }
         #lib-list { width: 92%; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 10px 0; }
         .lib-item { background: var(--card-bg); padding: 10px; border-radius: 14px; display: flex; align-items: center; gap: 10px; }
         .thumb { width: 50px; height: 50px; border-radius: 8px; object-fit: cover; }
@@ -47,10 +47,7 @@
     <div id="camera" class="screen">
         <div id="viewer-area">
             <video id="video" autoplay playsinline muted></video>
-            <div id="guide-overlay">
-                <div id="guide-content"></div>
-            </div>
-        </div>
+            <img id="onion-layer"> <div id="guide-overlay"></div> </div>
         <div style="flex-grow:1; display:flex; flex-direction:column; align-items:center; width:100%; justify-content: center;">
             <div id="mode-display" class="mode-tag" onclick="toggleGuide()">GUIDE: OFF</div>
             <div id="counter" style="color:#666; font-size:0.8rem; margin:10px 0;">0 FRAMES</div>
@@ -94,7 +91,7 @@
         let capturedImages = [], offsets = [], db, imageElements = [];
         let isDragging = false, isEditScreen = false, isAutoPlaying = false;
         let currentPos = 0, lastX = 0, lastY = 0, velocity = 0;
-        let guideMode = 0; // 0:Off, 1:360, 2:Object
+        let guideMode = 0; 
 
         const request = indexedDB.open("TouchAppDB", 1);
         request.onupgradeneeded = e => { e.target.result.createObjectStore("photos", { keyPath: "id", autoIncrement: true }); };
@@ -108,54 +105,56 @@
             if(id === 'library') renderLibraryList();
         }
 
-        // --- インポート処理（終了後プレビューへ） ---
         async function handleFileSelect(event) {
             const files = Array.from(event.target.files);
             if (files.length === 0) return;
             files.sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true}));
-            
             capturedImages = []; offsets = [];
             for (let file of files) {
                 const dataUrl = await new Promise(res => {
-                    const reader = new FileReader();
-                    reader.onload = e => res(e.target.result);
-                    reader.readAsDataURL(file);
+                    const reader = new FileReader(); reader.onload = e => res(e.target.result); reader.readAsDataURL(file);
                 });
-                capturedImages.push(dataUrl);
-                offsets.push({x:0, y:0});
+                capturedImages.push(dataUrl); offsets.push({x:0, y:0});
             }
-            startViewer(true); // 取り込み完了後、即座にVIEWERへ
-            event.target.value = "";
+            startViewer(true); event.target.value = "";
         }
 
-        // --- ガイドライン切り替え ---
+        // --- ガイドライン生成の修正 ---
         function toggleGuide() {
             guideMode = (guideMode + 1) % 3;
             const overlay = document.getElementById('guide-overlay');
-            const content = document.getElementById('guide-content');
             const tag = document.getElementById('mode-display');
+            overlay.innerHTML = "";
             
             if(guideMode === 0) {
-                overlay.style.display = 'none';
-                tag.innerText = "GUIDE: OFF";
+                overlay.style.display = 'none'; tag.innerText = "GUIDE: OFF";
             } else if(guideMode === 1) {
-                overlay.style.display = 'block';
-                content.className = 'guide-360';
-                tag.innerText = "GUIDE: 360°";
+                overlay.style.display = 'block'; tag.innerText = "GUIDE: 360°";
+                [25, 50, 75].forEach(top => {
+                    const l = document.createElement('div'); l.className = 'line-h'; l.style.top = top + "%";
+                    overlay.appendChild(l);
+                });
             } else {
-                overlay.style.display = 'block';
-                content.className = 'guide-obj';
-                tag.innerText = "GUIDE: OBJECT";
+                overlay.style.display = 'block'; tag.innerText = "GUIDE: OBJECT";
+                [33, 66].forEach(pos => {
+                    const h = document.createElement('div'); h.className = 'line-h'; h.style.top = pos + "%";
+                    const v = document.createElement('div'); v.className = 'line-v'; v.style.left = pos + "%";
+                    overlay.appendChild(h); overlay.appendChild(v);
+                });
             }
         }
 
         async function initCamera() {
-            capturedImages = []; offsets = []; 
-            document.getElementById('counter').innerText = "0 FRAMES";
+            // フリーズ防止のため配列のリセットのみ行い、streamは維持する
+            document.getElementById('counter').innerText = `${capturedImages.length} FRAMES`;
+            updateOnionSkin();
+            const v = document.getElementById('video');
+            if(v.srcObject) return; // すでに起動中なら何もしない
+
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 1000, height: 1000 } });
-                document.getElementById('video').srcObject = stream;
-            } catch (e) { console.log("Camera Error"); }
+                v.srcObject = stream;
+            } catch (e) { alert("Camera Error"); }
         }
 
         function stopCamera() {
@@ -167,6 +166,7 @@
             if(confirm("すべて撮り直しますか？")) {
                 capturedImages = []; offsets = [];
                 document.getElementById('counter').innerText = "0 FRAMES";
+                updateOnionSkin(); // オニオンも消去
             }
         }
 
@@ -175,9 +175,21 @@
             const canvas = document.getElementById('buffer');
             canvas.width = 800; canvas.height = 800;
             canvas.getContext('2d').drawImage(v, 0, 0, 800, 800);
-            capturedImages.push(canvas.toDataURL('image/jpeg', 0.8));
+            const data = canvas.toDataURL('image/jpeg', 0.8);
+            capturedImages.push(data);
             offsets.push({x:0, y:0});
             document.getElementById('counter').innerText = `${capturedImages.length} FRAMES`;
+            updateOnionSkin();
+        }
+
+        function updateOnionSkin() {
+            const onion = document.getElementById('onion-layer');
+            if(capturedImages.length > 0) {
+                onion.src = capturedImages[capturedImages.length - 1];
+                onion.style.display = 'block';
+            } else {
+                onion.style.display = 'none';
+            }
         }
 
         async function startViewer(isNew) {
@@ -223,10 +235,13 @@
         function onMove(e) {
             if(!isDragging) return;
             const total = imageElements.length;
-            const idx = (Math.floor(currentPos) % total + total) % total;
             const dx = e.clientX - lastX; const dy = e.clientY - lastY;
-            if(isEditScreen) { offsets[idx].x += dx * 2; offsets[idx].y += dy * 2; } 
-            else { velocity = dx / 15; currentPos -= velocity; }
+            if(isEditScreen) {
+                const idx = (Math.floor(currentPos) % total + total) % total;
+                offsets[idx].x += dx * 2; offsets[idx].y += dy * 2;
+            } else {
+                velocity = dx / 15; currentPos -= velocity;
+            }
             lastX = e.clientX; lastY = e.clientY; draw();
         }
         function onUp(e) { isDragging = false; }
