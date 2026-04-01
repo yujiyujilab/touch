@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>TOUCH ULTIMATE</title>
+    <title>TOUCH REFINED</title>
     <style>
         :root { --bg-color: #000; --text-color: #fff; --accent-color: #ff3b30; --card-bg: #1c1c1e; }
         body { margin: 0; padding: 0; background: var(--bg-color); color: var(--text-color); font-family: -apple-system, sans-serif; overflow: hidden; -webkit-user-select: none; }
@@ -78,7 +78,11 @@
 
             <div id="preview-ui" style="width:90%; display:flex; flex-direction:column; gap:10px;">
                 <div style="display:flex; gap:8px;"><div id="btn-loop" class="mini-btn" onclick="toggleLoopPlay()">LOOP: OFF</div><div class="mini-btn" style="background:#222;" onclick="setMode('edit')">EDIT (ALIGN)</div></div>
-                <div class="mini-btn" style="background:var(--accent-color); font-weight:bold;" onclick="exportToVideo()">🎬 SAVE MP4</div>
+                <div style="display:flex; gap:8px;">
+                    <div class="mini-btn" style="background:#2c2c2e;" onclick="resetAndNav('home')">HOME</div>
+                    <div class="mini-btn" style="background:#2c2c2e;" onclick="nav('library')">GALLERY</div>
+                    <div class="mini-btn" style="background:var(--accent-color); font-weight:bold;" onclick="exportToVideo()">🎬 MP4</div>
+                </div>
             </div>
 
             <div id="edit-ui" style="width:90%; display:none; flex-direction:column; align-items:center; gap:10px;">
@@ -120,7 +124,6 @@
             if(id === 'library') renderLibraryList();
         }
 
-        // データをリセットして遷移
         function resetAndNav(id) {
             capturedImages = []; offsets = []; imageElements = [];
             currentPos = 0; velocity = 0;
@@ -175,11 +178,11 @@
             document.getElementById('counter').innerText = `${capturedImages.length} FRAMES`;
             updateOnionSkin();
             const v = document.getElementById('video');
-            if(v.srcObject) return;
+            if(v.srcObject && v.srcObject.active) return; 
             try {
                 const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 1000, height: 1000 } });
                 v.srcObject = s;
-            } catch (e) { alert("Camera Access Error"); }
+            } catch (e) { console.log("Camera restart failed"); }
         }
 
         function stopCamera() {
@@ -192,6 +195,9 @@
                 capturedImages = []; offsets = [];
                 document.getElementById('counter').innerText = "0 FRAMES";
                 updateOnionSkin();
+                // 映像固定防止のため明示的にカメラの状態を確認
+                const v = document.getElementById('video');
+                if(!v.srcObject || !v.srcObject.active) initCamera();
             }
         }
 
@@ -229,7 +235,7 @@
             isEditScreen = (mode === 'edit');
             document.getElementById('preview-ui').style.display = isEditScreen ? 'none' : 'flex';
             document.getElementById('edit-ui').style.display = isEditScreen ? 'flex' : 'none';
-            document.getElementById('save-controls').style.display = isEditScreen ? 'none' : 'flex';
+            document.getElementById('save-controls').style.display = isEditScreen ? 'none' : (imageElements.length > 0 ? 'flex' : 'none');
             draw();
         }
 
@@ -241,11 +247,8 @@
             const total = imageElements.length;
             const idx = (Math.floor(currentPos) % total + total) % total;
             document.getElementById('frame-counter').innerText = `[ ${idx+1} / ${total} ]`;
-            
             ctx.fillStyle = "#000"; ctx.fillRect(0,0,800,800);
-            
             if(isEditScreen) {
-                // EDITモード：下の画像は不透明、操作中の画像は50%
                 const pIdx = (idx - 1 + total) % total;
                 ctx.globalAlpha = 1.0;
                 ctx.drawImage(imageElements[pIdx], offsets[pIdx].x, offsets[pIdx].y, 800, 800);
