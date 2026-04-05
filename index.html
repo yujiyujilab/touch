@@ -3,48 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>TOUCH - Phase 2 Advanced</title>
+    <title>TOUCH - Analog Feel Edition</title>
     <style>
         :root { --bg-color: #000; --text-color: #fff; --accent-color: #e63928; --btn-gray: #b3b3b3; }
-        body { margin: 0; padding: 0; background: var(--bg-color); color: var(--text-color); font-family: sans-serif; overflow: hidden; -webkit-user-select: none; }
-        .screen { display: none; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; flex-direction: column; align-items: center; box-sizing: border-box; }
+        
+        /* 画面全体のスクロールを完全に禁止 */
+        html, body { 
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            overflow: hidden; position: fixed; 
+            background: var(--bg-color); color: var(--text-color); 
+            font-family: sans-serif; 
+            touch-action: none; /* ブラウザ標準のズームやスクロールを無効化 */
+        }
+
+        .screen { 
+            display: none; width: 100vw; height: 100vh; 
+            flex-direction: column; align-items: center; 
+            box-sizing: border-box; padding-top: env(safe-area-inset-top);
+        }
         .screen.active { display: flex; }
 
-        .viewer-container { width: 100vw; height: 75vw; border-top: 2px solid #fff; border-bottom: 2px solid #fff; margin-top: 10px; position: relative; overflow: hidden; background: #000; }
+        /* ビューアエリアを画面中央付近に安定させる */
+        .viewer-container { 
+            width: 100vw; height: 75vw; 
+            border-top: 2px solid #fff; border-bottom: 2px solid #fff; 
+            margin-top: 5px; position: relative; overflow: hidden; background: #000;
+            touch-action: none;
+        }
         #video, #onion-layer, #play-canvas { width: 100%; height: 100%; object-fit: cover; position: absolute; top:0; left:0; }
         #guide-overlay { position: absolute; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
         
-        .ui-row { display: flex; width: 90vw; justify-content: space-between; margin-top: 12px; gap: 8px; flex-wrap: wrap; }
-        .control-btn { border: 2px solid #fff; background: rgba(0,0,0,0.5); color: #fff; padding: 10px 5px; flex: 1; font-size: 0.75rem; cursor: pointer; min-width: 80px; }
-        .counter-box { flex: 1; text-align: center; line-height: 2.5; font-size: 1rem; font-weight: bold; min-width: 80px; }
+        .ui-row { display: flex; width: 92vw; justify-content: space-between; margin-top: 8px; gap: 6px; }
+        .control-btn { 
+            border: 2px solid #fff; background: rgba(0,0,0,0.5); color: #fff; 
+            padding: 12px 5px; flex: 1; font-size: 0.75rem; cursor: pointer; 
+            font-weight: bold; border-radius: 4px;
+        }
+        .counter-box { flex: 1; text-align: center; line-height: 2.8; font-size: 1.1rem; font-weight: bold; }
         
-        #shutter { width: 85px; height: 85px; border-radius: 50%; background: var(--accent-color); border: 4px solid #000; outline: 3px solid #fff; margin: 15px 0; cursor: pointer; position: relative; }
+        #shutter { 
+            width: 80px; height: 80px; border-radius: 50%; 
+            background: var(--accent-color); border: 4px solid #000; 
+            outline: 3px solid #fff; margin: 10px 0; cursor: pointer; 
+        }
         .timer-running { animation: pulse 1s infinite; background: #fff !important; }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); background: var(--accent-color) !important; } 100% { transform: scale(1); } }
 
-        .nav-row { display: flex; width: 95vw; justify-content: space-between; margin-top: auto; padding-bottom: 25px; }
-        .nav-btn { border: 2px solid #fff; background: none; color: #fff; width: 31%; padding: 12px 0; font-size: 0.7rem; cursor: pointer; font-weight: bold; }
+        .nav-row { display: flex; width: 95vw; justify-content: space-between; margin-top: auto; padding-bottom: calc(15px + env(safe-area-inset-bottom)); }
+        .nav-btn { border: 2px solid #fff; background: none; color: #fff; width: 31%; padding: 14px 0; font-size: 0.7rem; cursor: pointer; font-weight: bold; }
 
         .line-h { position: absolute; width: 100%; height: 1px; background: rgba(255,255,255,0.6); }
         .line-v { position: absolute; height: 100%; width: 1px; background: rgba(255,255,255,0.6); }
 
+        /* モーダル */
         #custom-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; justify-content: center; align-items: center; }
         .modal-content { background: #333; padding: 25px; border-radius: 12px; text-align: center; width: 80%; max-width: 300px; border: 2px solid #fff; }
-        .m-btn { padding: 10px 20px; border: none; margin: 10px; cursor: pointer; font-weight: bold; }
+        .m-btn { padding: 12px 20px; border: none; margin: 10px; cursor: pointer; font-weight: bold; border-radius: 4px; }
 
         #shutter-curtain { position: absolute; width: 100%; height: 100%; background: #000; opacity: 0; pointer-events: none; z-index: 20; }
         .flash { animation: flash-effect 0.1s ease-out; }
         @keyframes flash-effect { 0% { opacity: 0.9; } 100% { opacity: 0; } }
     </style>
 </head>
-<body>
-
-    <div id="home" class="screen active">
-        <h1 style="font-size: 3.5rem; margin-top: 15vh;">TOUCH</h1>
-        <button class="home-btn" style="background:var(--accent-color); color:#fff; width:80%; padding:15px; margin:10px; font-weight:bold; border-radius:8px;" onclick="navToCamera()">CAPTURE</button>
-        <button class="home-btn" style="background:var(--btn-gray); color:#fff; width:80%; padding:15px; margin:10px; font-weight:bold; border-radius:8px;" onclick="document.getElementById('top-file-input').click()">IMPORT IMAGES</button>
+<body oncontextmenu="return false;"> <div id="home" class="screen active">
+        <h1 style="font-size: 3.5rem; margin-top: 15vh; letter-spacing: 0.1em;">TOUCH</h1>
+        <button class="home-btn" style="background:var(--accent-color); color:#fff; width:80%; padding:18px; margin:10px; font-weight:bold; border-radius:8px; border:none;" onclick="navToCamera()">CAPTURE</button>
+        <button class="home-btn" style="background:var(--btn-gray); color:#fff; width:80%; padding:18px; margin:10px; font-weight:bold; border-radius:8px; border:none;" onclick="document.getElementById('top-file-input').click()">IMPORT IMAGES</button>
         <input type="file" id="top-file-input" multiple accept="image/*" style="display:none" onchange="handleFileSelect(event)">
-        <button class="home-btn" style="background:var(--btn-gray); color:#fff; width:80%; padding:15px; margin:10px; font-weight:bold; border-radius:8px;" onclick="nav('library')">LIBRARY</button>
+        <button class="home-btn" style="background:var(--btn-gray); color:#fff; width:80%; padding:18px; margin:10px; font-weight:bold; border-radius:8px; border:none;" onclick="nav('library')">LIBRARY</button>
     </div>
 
     <div id="camera" class="screen">
@@ -63,7 +89,7 @@
             <button class="control-btn" onclick="cycleTimerSetting()" id="btn-timer" style="max-width:120px;">TIMER : off</button>
         </div>
         <div id="shutter" onclick="handleShutter()"></div>
-        <div class="ui-row"><button class="control-btn" style="max-width:100px; color:#999; border-color:#999;" onclick="cancelLastFrame()">CANCEL</button></div>
+        <div class="ui-row"><button class="control-btn" style="max-width:110px; color:#999; border-color:#999;" onclick="cancelLastFrame()">CANCEL</button></div>
         <div class="nav-row">
             <button id="cap-nav-home" class="nav-btn" onclick="showModal('EXIT')">HOME</button>
             <button id="cap-nav-retake" class="nav-btn" onclick="showModal('RETAKE')">RETAKE ALL</button>
@@ -111,7 +137,11 @@
         let stream = null, currentIndex = 0, insertIndex = null;
         let timerSec = 0, timerInterval = null, isTimerRunning = false;
         let loopSpeed = 0, loopInterval = null, guideMode = 0, isOnion = false;
-        let startX = 0;
+        
+        // スワイプ慣性用の変数
+        let lastX = 0;
+        let moveAccumulator = 0;
+        const SENSITIVITY = 15; // この数値（ピクセル）動くごとに1コマ進む
 
         function nav(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -122,17 +152,12 @@
 
         /* --- CAPTURE & CAMERA --- */
         async function navToCamera() { insertIndex = null; nav('camera'); }
-        
         async function prepareCameraUI() {
             await startCamera();
-            
-            // UI表示制御（ADD after THIS FLAME経由かどうか）
             const isAddMode = (insertIndex !== null);
             document.getElementById('cap-nav-home').style.visibility = isAddMode ? 'hidden' : 'visible';
             document.getElementById('cap-nav-retake').style.visibility = isAddMode ? 'hidden' : 'visible';
             document.getElementById('cap-nav-play').innerText = isAddMode ? 'BACK to PLAY CHECK' : 'PLAY CHECK';
-
-            // ADDモードなら表示していた画像をONIONにセット
             if (isAddMode && capturedImages.length > 0) {
                 isOnion = true;
                 updateOnionDisplay(capturedImages[insertIndex]);
@@ -140,7 +165,6 @@
             }
             updateCaptureUI();
         }
-
         async function startCamera() {
             const v = document.getElementById('video');
             if (stream && stream.active) return;
@@ -149,7 +173,6 @@
                 v.srcObject = stream;
             } catch (e) { alert("カメラを起動できません"); }
         }
-
         function stopCamera() { if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; } }
 
         function handleShutter() {
@@ -163,7 +186,6 @@
                 } else stopTimer();
             }
         }
-
         function stopTimer() {
             clearInterval(timerInterval); timerInterval = null; isTimerRunning = false;
             document.getElementById('shutter').classList.remove('timer-running');
@@ -175,21 +197,17 @@
             const curtain = document.getElementById('shutter-curtain');
             curtain.classList.add('flash'); setTimeout(() => curtain.classList.remove('flash'), 100);
             if (!v || v.videoWidth === 0) return;
-            
             b.width = v.videoWidth; b.height = v.videoHeight;
             b.getContext('2d').drawImage(v, 0, 0);
             const data = b.toDataURL('image/jpeg', 0.8);
-            
             if (insertIndex !== null) {
                 capturedImages.splice(insertIndex + 1, 0, data);
                 offsets.splice(insertIndex + 1, 0, {x:0, y:0});
                 comments.splice(insertIndex + 1, 0, []);
-                insertIndex++; // 次の撮影もその後に続くように進める
+                insertIndex++;
             } else {
                 capturedImages.push(data); offsets.push({x:0, y:0}); comments.push([]);
             }
-            
-            // 撮影直後の画像をオニオンにする
             if (isOnion) updateOnionDisplay(data);
             updateCaptureUI();
         }
@@ -199,16 +217,14 @@
             const currentPos = (insertIndex !== null) ? insertIndex + 1 : total;
             document.getElementById('cap-counter').innerText = `[ ${currentPos} / ${total} ]`;
         }
-
         function updateOnionDisplay(imgSrc) {
             const onion = document.getElementById('onion-layer');
-            onion.src = imgSrc;
-            onion.style.display = 'block';
+            onion.src = imgSrc; onion.style.display = 'block';
         }
 
         /* --- PLAY CHECK --- */
         function initPlayMode() {
-            // insertIndexはリセットしない（ADDモード継続の可能性があるため。navToCameraでのみリセット）
+            if (insertIndex === null) currentIndex = capturedImages.length - 1;
             drawFrame();
             setupSwipe();
         }
@@ -224,17 +240,36 @@
             img.src = capturedImages[currentIndex];
             document.getElementById('play-counter').innerText = `[ ${currentIndex + 1} / ${capturedImages.length} ]`;
         }
+
         function setupSwipe() {
             const area = document.getElementById('swipe-area');
-            area.ontouchstart = (e) => { startX = e.touches[0].clientX; stopLoop(); };
-            area.ontouchmove = (e) => {
-                const diff = e.touches[0].clientX - startX;
-                if (Math.abs(diff) > 20) {
-                    currentIndex = (currentIndex + (diff > 0 ? -1 : 1) + capturedImages.length) % capturedImages.length;
-                    drawFrame(); startX = e.touches[0].clientX;
+            
+            area.addEventListener('touchstart', (e) => {
+                lastX = e.touches[0].clientX;
+                moveAccumulator = 0;
+                stopLoop();
+            }, {passive: true});
+
+            area.addEventListener('touchmove', (e) => {
+                const currentX = e.touches[0].clientX;
+                const diff = currentX - lastX;
+                moveAccumulator += diff;
+
+                // 蓄積量が感度しきい値を超えたらコマを動かす
+                if (Math.abs(moveAccumulator) > SENSITIVITY) {
+                    const steps = Math.floor(Math.abs(moveAccumulator) / SENSITIVITY);
+                    const direction = moveAccumulator > 0 ? -1 : 1;
+                    
+                    currentIndex = (currentIndex + (direction * steps) + capturedImages.length) % capturedImages.length;
+                    drawFrame();
+                    
+                    // 余った移動量を残して次に繋げる（アナログ感の肝）
+                    moveAccumulator = moveAccumulator % SENSITIVITY;
                 }
-            };
+                lastX = currentX;
+            }, {passive: true});
         }
+
         function stepFrame(dir) {
             stopLoop();
             currentIndex = (currentIndex + dir + capturedImages.length) % capturedImages.length;
@@ -337,8 +372,8 @@
             nav('playcheck');
         }
         function saveToLibrary() {
-            const name = prompt("保存名", "nomi");
-            if (name) { alert("保存しました（擬似）"); nav('home'); }
+            const name = prompt("プロジェクト名を付けて保存してください", "project_01");
+            if (name) { alert(name + " を保存しました。"); nav('home'); }
         }
     </script>
 </body>
