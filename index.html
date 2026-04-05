@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>TOUCH - Inertia & Layout Fix</title>
+    <title>TOUCH - Stability & Guide Fix</title>
     <style>
         :root { --bg-color: #000; --text-color: #fff; --accent-color: #e63928; --btn-gray: #b3b3b3; }
         
@@ -23,14 +23,17 @@
         }
         .screen.active { display: flex; }
 
-        /* ビューアエリア */
         .viewer-container { 
             width: 100vw; height: 75vw; 
             border-top: 2px solid #fff; border-bottom: 2px solid #fff; 
             margin-top: 5px; position: relative; overflow: hidden; background: #000;
         }
         #video, #onion-layer, #play-canvas { width: 100%; height: 100%; object-fit: cover; position: absolute; top:0; left:0; }
-        #guide-overlay { position: absolute; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+        
+        /* ガイドラインのスタイル */
+        #guide-overlay { position: absolute; width: 100%; height: 100%; pointer-events: none; z-index: 10; top:0; left:0; }
+        .line-h { position: absolute; width: 100%; height: 1px; background: rgba(255,255,255,0.7); left: 0; }
+        .line-v { position: absolute; height: 100%; width: 1px; background: rgba(255,255,255,0.7); top: 0; }
         
         .ui-row { display: flex; width: 92vw; justify-content: space-between; margin-top: 10px; gap: 6px; }
         .control-btn { 
@@ -48,12 +51,7 @@
         .timer-running { animation: pulse 1s infinite; background: #fff !important; }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); background: var(--accent-color) !important; } 100% { transform: scale(1); } }
 
-        /* ボタンを常に一番下に配置するためのコンテナ */
-        .nav-row { 
-            display: flex; width: 95vw; justify-content: space-between; 
-            margin-top: auto; /* これで最下部に押し出す */
-            margin-bottom: 15px; 
-        }
+        .nav-row { display: flex; width: 95vw; justify-content: space-between; margin-top: auto; margin-bottom: 15px; }
         .nav-btn { border: 2px solid #fff; background: none; color: #fff; width: 31%; padding: 14px 0; font-size: 0.7rem; cursor: pointer; font-weight: bold; }
 
         #custom-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; justify-content: center; align-items: center; }
@@ -131,7 +129,6 @@
             <button class="m-btn" style="background:var(--btn-gray); color:#fff;" onclick="modalNo()">NO</button>
         </div>
     </div>
-
     <canvas id="buffer" style="display:none;"></canvas>
 
     <script>
@@ -140,11 +137,16 @@
         let timerSec = 0, timerInterval = null, isTimerRunning = false;
         let loopSpeed = 0, loopInterval = null, guideMode = 0, isOnion = false;
         
-        // 慣性スクロール用の変数
+        // 慣性スクロール変数
         let lastX = 0, moveAccumulator = 0, velocity = 0, lastMoveTime = 0;
         let inertiaTimer = null;
-        const SENSITIVITY = 15; // 1コマ動くピクセル数
-        const FRICTION = 0.92; // 減衰率（1に近いほど長く回る）
+        const SENSITIVITY = 15; 
+        const FRICTION = 0.92;
+
+        // 起動時に一度だけ実行
+        window.onload = () => {
+            setupSwipeListener();
+        };
 
         function nav(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -206,7 +208,13 @@
         function updateOnionDisplay(imgSrc) { const onion = document.getElementById('onion-layer'); onion.src = imgSrc; onion.style.display = 'block'; }
 
         /* --- PLAY CHECK (Inertia Swipe) --- */
-        function initPlayMode() { if (insertIndex === null) currentIndex = capturedImages.length - 1; drawFrame(); setupSwipe(); }
+        function initPlayMode() { 
+            // ページ遷移時は変数のリセットを最低限にする
+            if (insertIndex === null) currentIndex = capturedImages.length - 1;
+            stopInertia();
+            drawFrame();
+        }
+
         function drawFrame() {
             if (capturedImages.length === 0) return;
             const canvas = document.getElementById('play-canvas');
@@ -217,14 +225,15 @@
             document.getElementById('play-counter').innerText = `[ ${currentIndex + 1} / ${capturedImages.length} ]`;
         }
 
-        function setupSwipe() {
+        function setupSwipeListener() {
             const area = document.getElementById('swipe-area');
             area.addEventListener('touchstart', (e) => {
                 lastX = e.touches[0].clientX;
                 moveAccumulator = 0;
                 velocity = 0;
                 lastMoveTime = Date.now();
-                stopLoop(); stopInertia();
+                stopLoop(); 
+                stopInertia();
             }, {passive: true});
 
             area.addEventListener('touchmove', (e) => {
@@ -232,7 +241,7 @@
                 const currentX = e.touches[0].clientX;
                 const diff = currentX - lastX;
                 
-                velocity = diff / (now - lastMoveTime); // 瞬間速度
+                velocity = diff / (now - lastMoveTime);
                 moveAccumulator += diff;
 
                 if (Math.abs(moveAccumulator) > SENSITIVITY) {
@@ -245,18 +254,15 @@
             }, {passive: true});
 
             area.addEventListener('touchend', () => {
-                if (Math.abs(velocity) > 0.5) { // 一定以上の速さで離したら慣性開始
-                    startInertia();
-                }
+                if (Math.abs(velocity) > 0.5) startInertia();
             });
         }
 
         function startInertia() {
             stopInertia();
             inertiaTimer = setInterval(() => {
-                moveAccumulator += velocity * 16; // 16msあたりの移動量
-                velocity *= FRICTION; // 減速
-
+                moveAccumulator += velocity * 16;
+                velocity *= FRICTION;
                 if (Math.abs(moveAccumulator) > SENSITIVITY) {
                     const steps = Math.floor(Math.abs(moveAccumulator) / SENSITIVITY);
                     currentIndex = (currentIndex + (moveAccumulator > 0 ? -steps : steps) + capturedImages.length) % capturedImages.length;
@@ -267,6 +273,40 @@
             }, 16);
         }
         function stopInertia() { clearInterval(inertiaTimer); inertiaTimer = null; }
+
+        /* --- UI UTILS --- */
+        function toggleGuide() {
+            guideMode = (guideMode + 1) % 3;
+            const g = document.getElementById('guide-overlay');
+            const b = document.getElementById('btn-guide');
+            g.innerHTML = ""; // クリア
+            
+            if (guideMode === 0) {
+                b.innerText = "GUIDE : off";
+            } else if (guideMode === 1) {
+                b.innerText = "GUIDE : 360";
+                // 25%, 50%, 75% に水平線
+                [25, 50, 75].forEach(p => {
+                    const line = document.createElement('div');
+                    line.className = 'line-h';
+                    line.style.top = p + '%';
+                    g.appendChild(line);
+                });
+            } else if (guideMode === 2) {
+                b.innerText = "GUIDE : OBJ";
+                // 三分割法
+                [33.3, 66.6].forEach(p => {
+                    const hLine = document.createElement('div');
+                    hLine.className = 'line-h';
+                    hLine.style.top = p + '%';
+                    g.appendChild(hLine);
+                    const vLine = document.createElement('div');
+                    vLine.className = 'line-v';
+                    vLine.style.left = p + '%';
+                    g.appendChild(vLine);
+                });
+            }
+        }
 
         function stepFrame(dir) { stopLoop(); stopInertia(); currentIndex = (currentIndex + dir + capturedImages.length) % capturedImages.length; drawFrame(); }
         function cycleLoopSpeed() {
@@ -279,16 +319,6 @@
         function stopLoop() { clearInterval(loopInterval); loopInterval = null; }
         function deleteCurrentFrame() { if (capturedImages.length <= 1) return; capturedImages.splice(currentIndex, 1); offsets.splice(currentIndex, 1); comments.splice(currentIndex, 1); currentIndex = Math.min(currentIndex, capturedImages.length - 1); drawFrame(); }
         function addAfterThis() { insertIndex = currentIndex; nav('camera'); }
-
-        /* --- UI UTILS --- */
-        function toggleGuide() {
-            guideMode = (guideMode + 1) % 3;
-            const g = document.getElementById('guide-overlay'), b = document.getElementById('btn-guide');
-            g.innerHTML = "";
-            if (guideMode === 0) b.innerText = "GUIDE : off";
-            else if (guideMode === 1) { b.innerText = "GUIDE : 360"; [25, 50, 75].forEach(p => g.innerHTML += `<div class="line-h" style="top:${p}%"></div>`); } 
-            else { b.innerText = "GUIDE : OBJ"; [33, 66].forEach(p => { g.innerHTML += `<div class="line-h" style="top:${p}%"></div><div class="line-v" style="left:${p}%"></div>`; }); }
-        }
         function toggleOnion() {
             isOnion = !isOnion; document.getElementById('btn-onion').innerText = `ONION : ${isOnion ? 'on' : 'off'}`;
             if (isOnion && capturedImages.length > 0) updateOnionDisplay(capturedImages[(insertIndex !== null) ? insertIndex : capturedImages.length - 1]);
