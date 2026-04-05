@@ -197,10 +197,25 @@
             }
         }
 
-        // 全削除
-        function retakeAll() {
-            if (confirm("全ての画像を削除しますか？")) {
-                capturedImages = []; offsets = []; comments = [];
+        // 全削除（リテイク）
+        async function retakeAll() {
+            // confirm中のフリーズを防ぐため、事前に変数をチェック
+            if (capturedImages.length === 0) return;
+
+            if (confirm("全ての画像を削除しますか？\n（カメラ映像は維持されます）")) {
+                capturedImages = [];
+                offsets = [];
+                comments = [];
+                
+                // ここが重要：ダイアログ後にビデオが止まるのを防ぐ
+                const v = document.getElementById('video');
+                if (v && v.srcObject) {
+                    try {
+                        await v.play(); // 明示的に再生を継続
+                    } catch (e) {
+                        console.log("Play interrupted but handled.");
+                    }
+                }
                 updateUI();
             }
         }
@@ -209,13 +224,19 @@
         function updateUI() {
             const count = capturedImages.length;
             const counter = document.getElementById('counter');
-            if (counter) counter.innerText = `[ ${count} / ${count} ]`;
+            if (counter) {
+                counter.innerText = `[ ${count} / ${count} ]`;
+            }
             
             const onion = document.getElementById('onion-layer');
+            // オニオン表示もデータが空なら即座に隠す
             if (isOnion && count > 0) {
                 onion.src = capturedImages[count - 1];
                 onion.style.display = 'block';
-            } else { onion.style.display = 'none'; }
+            } else {
+                onion.style.display = 'none';
+                onion.src = ""; // ソースをクリア
+            }
         }
 
         function toggleOnion() {
