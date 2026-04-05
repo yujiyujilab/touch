@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>TOUCH - Phase 1 Stable</title>
+    <title>TOUCH - Phase 1 Fix</title>
     <style>
         :root { --bg-color: #000; --text-color: #fff; --accent-color: #e63928; --btn-gray: #b3b3b3; }
         body { margin: 0; padding: 0; background: var(--bg-color); color: var(--text-color); font-family: sans-serif; overflow: hidden; -webkit-user-select: none; }
@@ -13,7 +13,7 @@
 
         /* HOME */
         #home h1 { font-size: 3.5rem; margin-top: 15vh; margin-bottom: 8vh; letter-spacing: 0.1em; }
-        .home-btn { width: 80%; max-width: 400px; padding: 15px; margin: 8px 0; font-size: 1.2rem; border: none; cursor: pointer; font-weight: bold; }
+        .home-btn { width: 80%; max-width: 400px; padding: 15px; margin: 8px 0; font-size: 1.2rem; border: none; cursor: pointer; font-weight: bold; border-radius: 8px; }
         .btn-capture { background: var(--accent-color); color: #fff; }
         .btn-gray { background: var(--btn-gray); color: #fff; }
 
@@ -89,19 +89,20 @@
         let guideMode = 0, isOnion = false, timerInterval = null;
         let stream = null;
 
-        // 画面遷移の基本
+        // 基本の画面切り替え
         function nav(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
+            const target = document.getElementById(id);
+            if (target) target.classList.add('active');
         }
 
-        // カメラ画面へ行く
+        // CAPTUREモードへの移動
         async function navToCamera() {
             nav('camera');
             await startCamera();
         }
 
-        // カメラ画面から出る
+        // HOMEへ戻る（カメラ停止）
         function exitCamera() {
             if (capturedImages.length > 0 && !confirm("データを破棄して戻りますか？")) return;
             stopTimer();
@@ -111,32 +112,33 @@
             nav('home');
         }
 
-        // カメラ起動ロジック
+        // カメラ起動
         async function startCamera() {
             const v = document.getElementById('video');
-            if (stream && stream.active) return; // 既に動いていれば何もしない
+            if (stream && stream.active) return; 
 
             try {
                 stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } 
                 });
                 v.srcObject = stream;
-                // 明示的にplayを呼ぶ（iOS対策）
+                // play()の完了を待つ
                 await v.play();
-                console.log("Camera started");
+                console.log("Camera started successfully");
             } catch (e) {
-                alert("カメラの起動に失敗しました。設定を確認してください。");
+                console.error("Camera Error:", e);
+                alert("カメラを起動できませんでした。ブラウザの設定でカメラを許可してください。");
             }
         }
 
-        // カメラ停止ロジック
+        // カメラ停止
         function stopCamera() {
             if (stream) {
                 stream.getTracks().forEach(track => track.stop());
                 stream = null;
             }
             const v = document.getElementById('video');
-            v.srcObject = null;
+            if (v) v.srcObject = null;
         }
 
         // 撮影
@@ -147,11 +149,10 @@
             // シャッター演出
             const curtain = document.getElementById('shutter-curtain');
             curtain.classList.remove('flash');
-            void curtain.offsetWidth; // リフロー
+            void curtain.offsetWidth; 
             curtain.classList.add('flash');
 
-            // 映像が有効かチェック
-            if (v.videoWidth === 0) return;
+            if (!v || v.videoWidth === 0) return;
 
             b.width = v.videoWidth; b.height = v.videoHeight;
             b.getContext('2d').drawImage(v, 0, 0);
@@ -168,6 +169,7 @@
             if (timerInterval) stopTimer(); else captureFrame();
         }
 
+        // タイマー
         function toggleTimer() {
             if (timerInterval) { stopTimer(); return; }
             const sec = prompt("撮影間隔（秒）", "2");
@@ -187,6 +189,7 @@
             }
         }
 
+        // 1枚削除
         function cancelLastFrame() {
             if (capturedImages.length > 0) {
                 capturedImages.pop(); offsets.pop(); comments.pop();
@@ -194,17 +197,20 @@
             }
         }
 
-        // RETAKE ALL: 映像はそのまま、中身だけ消す
+        // 全削除
         function retakeAll() {
-            if (confirm("全ての画像を削除しますか？（カメラは継続します）")) {
+            if (confirm("全ての画像を削除しますか？")) {
                 capturedImages = []; offsets = []; comments = [];
                 updateUI();
             }
         }
 
+        // UI（枚数表示など）の更新
         function updateUI() {
             const count = capturedImages.length;
-            document.getElementById('counter').innerText = `[ ${count} / ${count} ]`;
+            const counter = document.getElementById('counter');
+            if (counter) counter.innerText = `[ ${count} / ${count} ]`;
+            
             const onion = document.getElementById('onion-layer');
             if (isOnion && count > 0) {
                 onion.src = capturedImages[count - 1];
@@ -230,7 +236,7 @@
             } else {
                 b.innerText = "GUIDE : OBJ";
                 [33, 66].forEach(p => { 
-                    g.innerHTML += `<div class="line-h" style="top:${p}%"></div><div class="line-v" style="left:${p}%"></div>`); 
+                    g.innerHTML += `<div class="line-h" style="top:${p}%"></div><div class="line-v" style="left:${p}%"></div>`; 
                 });
             }
         }
@@ -249,7 +255,7 @@
 
         function goPlayCheck() {
             if (capturedImages.length === 0) return alert("撮影データがありません。");
-            alert("Phase 2：PLAY CHECKモードへ進みます。");
+            alert("Phase 2へ進みます。");
         }
     </script>
 </body>
