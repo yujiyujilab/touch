@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>TOUCH - Phase 2 Integrated</title>
+    <title>TOUCH - Full Integrated</title>
     <style>
         :root { --bg-color: #000; --text-color: #fff; --accent-color: #e63928; --btn-gray: #b3b3b3; }
         body { margin: 0; padding: 0; background: var(--bg-color); color: var(--text-color); font-family: sans-serif; overflow: hidden; -webkit-user-select: none; }
@@ -13,18 +13,21 @@
         /* UI汎用 */
         .viewer-container { width: 100vw; height: 75vw; border-top: 2px solid #fff; border-bottom: 2px solid #fff; margin-top: 10px; position: relative; overflow: hidden; background: #000; }
         #video, #onion-layer, #play-canvas { width: 100%; height: 100%; object-fit: cover; position: absolute; top:0; left:0; }
+        #guide-overlay { position: absolute; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
         .ui-row { display: flex; width: 90vw; justify-content: space-between; margin-top: 12px; gap: 8px; flex-wrap: wrap; }
         .control-btn { border: 2px solid #fff; background: rgba(0,0,0,0.5); color: #fff; padding: 10px 5px; flex: 1; font-size: 0.75rem; cursor: pointer; min-width: 80px; }
         .counter-box { flex: 1; text-align: center; line-height: 2.5; font-size: 1rem; font-weight: bold; min-width: 80px; }
         
-        /* 撮影ボタン */
-        #shutter { width: 85px; height: 85px; border-radius: 50%; background: var(--accent-color); border: 4px solid #000; outline: 3px solid #fff; margin: 15px 0; cursor: pointer; }
+        #shutter { width: 85px; height: 85px; border-radius: 50%; background: var(--accent-color); border: 4px solid #000; outline: 3px solid #fff; margin: 15px 0; cursor: pointer; position: relative; }
         .timer-running { animation: pulse 1s infinite; background: #fff !important; }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); background: var(--accent-color) !important; } 100% { transform: scale(1); } }
 
-        /* ナビゲーション */
         .nav-row { display: flex; width: 95vw; justify-content: space-between; margin-top: auto; padding-bottom: 25px; }
-        .nav-btn { border: 2px solid #fff; background: none; color: #fff; width: 48%; padding: 12px 0; font-size: 0.8rem; cursor: pointer; font-weight: bold; }
+        .nav-btn { border: 2px solid #fff; background: none; color: #fff; width: 31%; padding: 12px 0; font-size: 0.75rem; cursor: pointer; font-weight: bold; }
+
+        /* ガイド線 */
+        .line-h { position: absolute; width: 100%; height: 1px; background: rgba(255,255,255,0.6); }
+        .line-v { position: absolute; height: 100%; width: 1px; background: rgba(255,255,255,0.6); }
 
         /* モーダル */
         #custom-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; justify-content: center; align-items: center; }
@@ -40,7 +43,9 @@
 
     <div id="home" class="screen active">
         <h1 style="font-size: 3.5rem; margin-top: 15vh;">TOUCH</h1>
-        <button class="home-btn btn-capture" style="background:var(--accent-color); color:#fff; width:80%; padding:15px; margin:10px; font-weight:bold; border-radius:8px;" onclick="navToCamera()">CAPTURE</button>
+        <button class="home-btn" style="background:var(--accent-color); color:#fff; width:80%; padding:15px; margin:10px; font-weight:bold; border-radius:8px;" onclick="navToCamera()">CAPTURE</button>
+        <button class="home-btn" style="background:var(--btn-gray); color:#fff; width:80%; padding:15px; margin:10px; font-weight:bold; border-radius:8px;" onclick="document.getElementById('top-file-input').click()">IMPORT IMAGES</button>
+        <input type="file" id="top-file-input" multiple accept="image/*" style="display:none" onchange="handleFileSelect(event)">
         <button class="home-btn" style="background:var(--btn-gray); color:#fff; width:80%; padding:15px; margin:10px; font-weight:bold; border-radius:8px;" onclick="nav('library')">LIBRARY</button>
     </div>
 
@@ -48,17 +53,22 @@
         <div class="viewer-container">
             <video id="video" autoplay playsinline muted></video>
             <img id="onion-layer" style="display:none; opacity: 0.4;">
+            <div id="guide-overlay"></div>
             <div id="shutter-curtain"></div>
         </div>
         <div class="ui-row">
-            <button class="control-btn" onclick="cycleTimerSetting()" id="btn-timer">TIMER : off</button>
+            <button class="control-btn" onclick="toggleGuide()" id="btn-guide">GUIDE : off</button>
             <div id="cap-counter" class="counter-box">[ 0 / 0 ]</div>
             <button class="control-btn" onclick="toggleOnion()" id="btn-onion">ONION : off</button>
         </div>
+        <div class="ui-row" style="justify-content: flex-start;">
+            <button class="control-btn" onclick="cycleTimerSetting()" id="btn-timer" style="max-width:120px;">TIMER : off</button>
+        </div>
         <div id="shutter" onclick="handleShutter()"></div>
-        <div class="ui-row"><button class="control-btn" style="max-width:100px;" onclick="cancelLastFrame()">CANCEL</button></div>
+        <div class="ui-row"><button class="control-btn" style="max-width:100px; color:#999; border-color:#999;" onclick="cancelLastFrame()">CANCEL</button></div>
         <div class="nav-row">
             <button class="nav-btn" onclick="showModal('EXIT')">HOME</button>
+            <button class="nav-btn" onclick="showModal('RETAKE')">RETAKE ALL</button>
             <button class="nav-btn" onclick="goPlayCheck()">PLAY CHECK</button>
         </div>
     </div>
@@ -69,7 +79,7 @@
         </div>
         <div class="ui-row">
             <button class="control-btn" onclick="stepFrame(-1)">◀ STEP</button>
-            <div id="play-counter" class="counter-box">[ 1 / 16 ]</div>
+            <div id="play-counter" class="counter-box">[ 1 / 0 ]</div>
             <button class="control-btn" onclick="stepFrame(1)">STEP ▶</button>
         </div>
         <div class="ui-row">
@@ -82,9 +92,9 @@
         <div class="ui-row">
             <button class="control-btn" onclick="nav('pos-edit')">POS EDIT</button>
         </div>
-        <div class="nav-row">
-            <button class="nav-btn" onclick="showModal('EXIT')">HOME (QUIT)</button>
-            <button class="nav-btn" onclick="saveToLibrary()">SAVE to LIBRARY</button>
+        <div class="nav-row" style="width:95vw;">
+            <button class="nav-btn" style="width:48%" onclick="showModal('EXIT')">HOME (QUIT)</button>
+            <button class="nav-btn" style="width:48%" onclick="saveToLibrary()">SAVE to LIBRARY</button>
         </div>
     </div>
 
@@ -99,34 +109,30 @@
     <canvas id="buffer" style="display:none;"></canvas>
 
     <script>
-        let capturedImages = [];
-        let stream = null;
-        let currentIndex = 0;
-        
-        // Timer & Loop
+        let capturedImages = [], offsets = [], comments = [];
+        let stream = null, currentIndex = 0, insertIndex = null;
         let timerSec = 0, timerInterval = null, isTimerRunning = false;
-        let loopSpeed = 0; // 0, 1, 2, 4
-        let loopInterval = null;
-
-        // Swipe
+        let loopSpeed = 0, loopInterval = null, guideMode = 0, isOnion = false;
         let startX = 0;
 
         function nav(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
             if (id === 'playcheck') initPlayMode();
-            if (id === 'camera') startCamera(); else stopLoop();
+            if (id === 'camera') startCamera(); else { stopLoop(); stopTimer(); }
         }
 
-        /* --- CAPTURE LOGIC --- */
+        /* --- CAPTURE & CAMERA --- */
         async function navToCamera() { nav('camera'); }
-        
         async function startCamera() {
             const v = document.getElementById('video');
-            if (stream) return;
-            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-            v.srcObject = stream;
+            if (stream && stream.active) return;
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 } } });
+                v.srcObject = stream;
+            } catch (e) { alert("カメラを起動できません"); }
         }
+        function stopCamera() { if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; } }
 
         function handleShutter() {
             if (timerSec === 0) captureFrame();
@@ -139,10 +145,8 @@
                 } else stopTimer();
             }
         }
-
         function stopTimer() {
-            clearInterval(timerInterval);
-            isTimerRunning = false;
+            clearInterval(timerInterval); timerInterval = null; isTimerRunning = false;
             document.getElementById('shutter').classList.remove('timer-running');
         }
 
@@ -151,44 +155,38 @@
             const b = document.getElementById('buffer');
             const curtain = document.getElementById('shutter-curtain');
             curtain.classList.add('flash'); setTimeout(() => curtain.classList.remove('flash'), 100);
-
+            if (!v || v.videoWidth === 0) return;
             b.width = v.videoWidth; b.height = v.videoHeight;
             b.getContext('2d').drawImage(v, 0, 0);
             const data = b.toDataURL('image/jpeg', 0.8);
-
-            // 挿入モード（ADD after THIS）対応
             if (insertIndex !== null) {
                 capturedImages.splice(insertIndex + 1, 0, data);
+                offsets.splice(insertIndex + 1, 0, {x:0, y:0});
+                comments.splice(insertIndex + 1, 0, []);
                 insertIndex++;
             } else {
-                capturedImages.push(data);
+                capturedImages.push(data); offsets.push({x:0, y:0}); comments.push([]);
             }
             updateCaptureUI();
         }
 
-        let insertIndex = null;
-        function addAfterThis() {
-            insertIndex = currentIndex;
-            nav('camera');
-        }
-
         function updateCaptureUI() {
-            document.getElementById('cap-counter').innerText = `[ ${capturedImages.length} / ${capturedImages.length} ]`;
-            if (capturedImages.length > 0 && isOnion) {
-                const onion = document.getElementById('onion-layer');
-                onion.src = capturedImages[capturedImages.length-1];
+            const count = capturedImages.length;
+            document.getElementById('cap-counter').innerText = `[ ${count} / ${count} ]`;
+            const onion = document.getElementById('onion-layer');
+            if (isOnion && count > 0) {
+                onion.src = capturedImages[count-1];
                 onion.style.display = 'block';
-            }
+            } else onion.style.display = 'none';
         }
 
-        /* --- PLAY CHECK LOGIC --- */
+        /* --- PLAY CHECK --- */
         function initPlayMode() {
             insertIndex = null;
             currentIndex = capturedImages.length - 1;
             drawFrame();
             setupSwipe();
         }
-
         function drawFrame() {
             if (capturedImages.length === 0) return;
             const canvas = document.getElementById('play-canvas');
@@ -201,13 +199,6 @@
             img.src = capturedImages[currentIndex];
             document.getElementById('play-counter').innerText = `[ ${currentIndex + 1} / ${capturedImages.length} ]`;
         }
-
-        function stepFrame(dir) {
-            stopLoop();
-            currentIndex = (currentIndex + dir + capturedImages.length) % capturedImages.length;
-            drawFrame();
-        }
-
         function setupSwipe() {
             const area = document.getElementById('swipe-area');
             area.ontouchstart = (e) => { startX = e.touches[0].clientX; stopLoop(); };
@@ -215,12 +206,15 @@
                 const diff = e.touches[0].clientX - startX;
                 if (Math.abs(diff) > 20) {
                     currentIndex = (currentIndex + (diff > 0 ? -1 : 1) + capturedImages.length) % capturedImages.length;
-                    drawFrame();
-                    startX = e.touches[0].clientX;
+                    drawFrame(); startX = e.touches[0].clientX;
                 }
             };
         }
-
+        function stepFrame(dir) {
+            stopLoop();
+            currentIndex = (currentIndex + dir + capturedImages.length) % capturedImages.length;
+            drawFrame();
+        }
         function cycleLoopSpeed() {
             const speeds = [0, 1, 2, 4];
             loopSpeed = speeds[(speeds.indexOf(loopSpeed) + 1) % speeds.length];
@@ -230,59 +224,86 @@
                 loopInterval = setInterval(() => {
                     currentIndex = (currentIndex + 1) % capturedImages.length;
                     drawFrame();
-                }, 1000 / (loopSpeed * 5)); // 基本5fpsベース
+                }, 1000 / (loopSpeed * 5));
             }
         }
-
-        function stopLoop() {
-            clearInterval(loopInterval);
-            loopInterval = null;
-        }
-
+        function stopLoop() { clearInterval(loopInterval); loopInterval = null; }
         function deleteCurrentFrame() {
-            if (capturedImages.length <= 1) return alert("これ以上削除できません。");
+            if (capturedImages.length <= 1) return alert("最後の1枚は削除できません。");
             capturedImages.splice(currentIndex, 1);
+            offsets.splice(currentIndex, 1); comments.splice(currentIndex, 1);
             currentIndex = Math.min(currentIndex, capturedImages.length - 1);
             drawFrame();
         }
+        function addAfterThis() { insertIndex = currentIndex; nav('camera'); }
 
-        function saveToLibrary() {
-            const name = prompt("保存する名前を入力してください", "nomi");
-            if (name) {
-                alert(name + " を保存しました。");
-                nav('home');
+        /* --- UI UTILS --- */
+        function toggleGuide() {
+            guideMode = (guideMode + 1) % 3;
+            const g = document.getElementById('guide-overlay');
+            const b = document.getElementById('btn-guide');
+            g.innerHTML = "";
+            if (guideMode === 0) b.innerText = "GUIDE : off";
+            else if (guideMode === 1) {
+                b.innerText = "GUIDE : 360";
+                [25, 50, 75].forEach(p => g.innerHTML += `<div class="line-h" style="top:${p}%"></div>`);
+            } else {
+                b.innerText = "GUIDE : OBJ";
+                [33, 66].forEach(p => { 
+                    g.innerHTML += `<div class="line-h" style="top:${p}%"></div><div class="line-v" style="left:${p}%"></div>`; 
+                });
             }
         }
-
-        /* --- SYSTEM --- */
-        let modalAction = "";
-        function showModal(type) {
-            modalAction = type;
-            document.getElementById('modal-msg').innerText = "データを破棄して戻りますか？";
-            document.getElementById('custom-modal').style.display = 'flex';
-        }
-        function modalNo() { document.getElementById('custom-modal').style.display = 'none'; }
-        function modalYes() {
-            document.getElementById('custom-modal').style.display = 'none';
-            capturedImages = [];
-            nav('home');
-        }
-
-        // その他トグル
-        let isOnion = false;
         function toggleOnion() {
             isOnion = !isOnion;
             document.getElementById('btn-onion').innerText = `ONION : ${isOnion ? 'on' : 'off'}`;
-            if (!isOnion) document.getElementById('onion-layer').style.display = 'none';
+            updateCaptureUI();
         }
         function cycleTimerSetting() {
             const t = [0, 2, 5, 10];
             timerSec = t[(t.indexOf(timerSec) + 1) % t.length];
             document.getElementById('btn-timer').innerText = `TIMER : ${timerSec === 0 ? 'off' : timerSec + 's'}`;
         }
+        async function handleFileSelect(e) {
+            const files = Array.from(e.target.files);
+            for (const file of files) {
+                const data = await new Promise(res => {
+                    const r = new FileReader(); r.onload = x => res(x.target.result); r.readAsDataURL(file);
+                });
+                capturedImages.push(data); offsets.push({x:0, y:0}); comments.push([]);
+            }
+            updateCaptureUI(); alert(`${files.length}枚読み込みました。`);
+        }
+
+        /* --- SYSTEM --- */
+        let currentModalType = "";
+        function showModal(type) {
+            currentModalType = type;
+            const msg = document.getElementById('modal-msg');
+            msg.innerText = type === 'RETAKE' ? "全ての画像を削除しますか？" : "データを破棄してHOMEに戻りますか？";
+            document.getElementById('custom-modal').style.display = 'flex';
+        }
+        function modalNo() { document.getElementById('custom-modal').style.display = 'none'; }
+        function modalYes() {
+            document.getElementById('custom-modal').style.display = 'none';
+            if (currentModalType === 'RETAKE') {
+                capturedImages = []; offsets = []; comments = []; updateCaptureUI();
+            } else {
+                capturedImages = []; offsets = []; comments = []; stopCamera(); nav('home');
+            }
+        }
+        function cancelLastFrame() {
+            if (capturedImages.length > 0) {
+                capturedImages.pop(); offsets.pop(); comments.pop(); updateCaptureUI();
+            }
+        }
         function goPlayCheck() {
-            if (capturedImages.length === 0) return alert("撮影データがありません。");
+            if (capturedImages.length === 0) return alert("データがありません");
             nav('playcheck');
+        }
+        function saveToLibrary() {
+            const name = prompt("保存名", "nomi");
+            if (name) { alert("保存しました（擬似）"); nav('home'); }
         }
     </script>
 </body>
