@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>TOUCH - Phase 1 Ultimate Stable</title>
+    <title>TOUCH - Phase 1 Final</title>
     <style>
         :root { --bg-color: #000; --text-color: #fff; --accent-color: #e63928; --btn-gray: #b3b3b3; }
         body { margin: 0; padding: 0; background: var(--bg-color); color: var(--text-color); font-family: sans-serif; overflow: hidden; -webkit-user-select: none; }
-        
         .screen { display: none; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; flex-direction: column; align-items: center; box-sizing: border-box; }
         .screen.active { display: flex; }
 
@@ -21,26 +20,26 @@
         #viewer-area { width: 100vw; height: 75vw; border-top: 2px solid #fff; border-bottom: 2px solid #fff; margin-top: 10px; position: relative; overflow: hidden; background: #000; }
         #video, #onion-layer { width: 100%; height: 100%; object-fit: cover; position: absolute; top:0; left:0; }
         #guide-overlay { position: absolute; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
-        
         #shutter-curtain { position: absolute; width: 100%; height: 100%; background: #000; opacity: 0; pointer-events: none; z-index: 20; }
-        .flash { animation: flash-effect 0.15s ease-out; }
+        .flash { animation: flash-effect 0.1s ease-out; }
         @keyframes flash-effect { 0% { opacity: 0.9; } 100% { opacity: 0; } }
 
         .ui-row { display: flex; width: 90vw; justify-content: space-between; margin-top: 12px; gap: 10px; }
         .control-btn { border: 2px solid #fff; background: rgba(0,0,0,0.5); color: #fff; padding: 8px 0; flex: 1; font-size: 0.8rem; cursor: pointer; }
         .counter-box { flex: 1; text-align: center; line-height: 2.2; font-size: 1rem; font-weight: bold; }
         
-        #shutter { width: 85px; height: 85px; border-radius: 50%; background: var(--accent-color); border: 4px solid #000; outline: 3px solid #fff; margin: 15px 0; cursor: pointer; }
-        #shutter.timer-active { animation: pulse 1s infinite; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0px rgba(230, 57, 40, 0.7); } 100% { box-shadow: 0 0 0 20px rgba(230, 57, 40, 0); } }
+        #shutter { width: 85px; height: 85px; border-radius: 50%; background: var(--accent-color); border: 4px solid #000; outline: 3px solid #fff; margin: 15px 0; cursor: pointer; position: relative; }
+        #shutter.timer-running { animation: pulse 1s infinite; background: #fff; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); background: var(--accent-color); } 100% { transform: scale(1); } }
 
         .nav-row { display: flex; width: 95vw; justify-content: space-between; margin-top: auto; padding-bottom: 25px; }
         .nav-btn { border: 2px solid #fff; background: none; color: #fff; width: 31%; padding: 12px 0; font-size: 0.8rem; cursor: pointer; font-weight: bold; }
 
+        /* ガイド線 */
         .line-h { position: absolute; width: 100%; height: 1px; background: rgba(255,255,255,0.6); }
         .line-v { position: absolute; height: 100%; width: 1px; background: rgba(255,255,255,0.6); }
 
-        /* 独自ダイアログ (Custom Modal) */
+        /* モーダル */
         #custom-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; justify-content: center; align-items: center; }
         .modal-content { background: #333; padding: 25px; border-radius: 12px; text-align: center; width: 80%; max-width: 300px; border: 2px solid #fff; }
         .modal-btns { display: flex; justify-content: space-around; margin-top: 20px; }
@@ -74,10 +73,10 @@
         </div>
 
         <div class="ui-row" style="justify-content: flex-start;">
-            <button id="btn-timer" class="control-btn" style="max-width: 130px;" onclick="toggleTimer()">TIMER : off</button>
+            <button id="btn-timer" class="control-btn" style="max-width: 130px;" onclick="cycleTimerSetting()">TIMER : off</button>
         </div>
 
-        <div id="shutter" onclick="onShutterClick()"></div>
+        <div id="shutter" onclick="handleShutter()"></div>
 
         <div class="ui-row" style="justify-content: flex-start;">
             <button class="control-btn" style="max-width: 100px; border-color: #666; color: #666;" onclick="cancelLastFrame()">CANCEL</button>
@@ -92,7 +91,7 @@
 
     <div id="custom-modal">
         <div class="modal-content">
-            <p id="modal-msg">メッセージ</p>
+            <p id="modal-msg"></p>
             <div class="modal-btns">
                 <button class="m-btn m-yes" onclick="modalYes()">YES</button>
                 <button class="m-btn m-no" onclick="modalNo()">NO</button>
@@ -104,9 +103,12 @@
 
     <script>
         let capturedImages = [], offsets = [], comments = [];
-        let guideMode = 0, isOnion = false, timerInterval = null;
-        let stream = null;
-        let currentModalType = "";
+        let guideMode = 0, isOnion = false, stream = null;
+        
+        // タイマー管理
+        let timerSec = 0; // 0:off, 2, 5, 10
+        let timerInterval = null;
+        let isTimerRunning = false;
 
         function nav(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -118,53 +120,42 @@
             await startCamera();
         }
 
-        // モーダル管理
-        function showModal(type) {
-            currentModalType = type;
-            const msg = document.getElementById('modal-msg');
-            if (type === 'RETAKE') msg.innerText = "全ての画像を削除しますか？";
-            if (type === 'EXIT') msg.innerText = "データを破棄してHOMEに戻りますか？";
-            document.getElementById('custom-modal').style.display = 'flex';
+        // タイマー設定の切り替え (off > 2s > 5s > 10s)
+        function cycleTimerSetting() {
+            if (isTimerRunning) return; // 実行中は設定変更不可
+            if (timerSec === 0) timerSec = 2;
+            else if (timerSec === 2) timerSec = 5;
+            else if (timerSec === 5) timerSec = 10;
+            else timerSec = 0;
+            
+            document.getElementById('btn-timer').innerText = timerSec === 0 ? "TIMER : off" : `TIMER : ${timerSec}s`;
         }
 
-        function modalNo() { document.getElementById('custom-modal').style.display = 'none'; }
-
-        async function modalYes() {
-            document.getElementById('custom-modal').style.display = 'none';
-            if (currentModalType === 'RETAKE') {
-                capturedImages = []; offsets = []; comments = [];
-                updateUI();
-                // ビデオが止まらないように再アピール
-                const v = document.getElementById('video');
-                if (v) v.play().catch(()=>{});
-            } else if (currentModalType === 'EXIT') {
-                stopTimer();
-                stopCamera();
-                capturedImages = []; offsets = []; comments = [];
-                updateUI();
-                nav('home');
+        // シャッターボタンの挙動
+        function handleShutter() {
+            if (timerSec === 0) {
+                // 通常撮影
+                captureFrame();
+            } else {
+                // タイマーモード
+                if (!isTimerRunning) {
+                    // 開始
+                    isTimerRunning = true;
+                    document.getElementById('shutter').classList.add('timer-running');
+                    captureFrame(); // 最初の1枚
+                    timerInterval = setInterval(captureFrame, timerSec * 1000);
+                } else {
+                    // 停止
+                    stopTimerLoop();
+                }
             }
         }
 
-        // カメラ制御
-        async function startCamera() {
-            const v = document.getElementById('video');
-            if (stream && stream.active) return; 
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } 
-                });
-                v.srcObject = stream;
-                await v.play();
-            } catch (e) {
-                alert("カメラを起動できませんでした。許可設定を確認してください。");
-            }
-        }
-
-        function stopCamera() {
-            if (stream) { stream.getTracks().forEach(track => track.stop()); stream = null; }
-            const v = document.getElementById('video');
-            if (v) v.srcObject = null;
+        function stopTimerLoop() {
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = null;
+            isTimerRunning = false;
+            document.getElementById('shutter').classList.remove('timer-running');
         }
 
         function captureFrame() {
@@ -187,26 +178,41 @@
             updateUI();
         }
 
-        function onShutterClick() {
-            if (timerInterval) stopTimer(); else captureFrame();
+        // カメラ・モーダル・その他（前回同様）
+        async function startCamera() {
+            const v = document.getElementById('video');
+            if (stream && stream.active) return; 
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } 
+                });
+                v.srcObject = stream;
+                await v.play();
+            } catch (e) { alert("カメラを起動できません。許可設定を確認してください。"); }
         }
 
-        function toggleTimer() {
-            if (timerInterval) { stopTimer(); return; }
-            const sec = prompt("撮影間隔（秒）", "2");
-            if (sec && !isNaN(sec) && sec > 0) {
-                timerInterval = setInterval(captureFrame, sec * 1000);
-                document.getElementById('btn-timer').innerText = `TIMER : ${sec}s`;
-                document.getElementById('shutter').classList.add('timer-active');
-            }
+        function stopCamera() {
+            if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+            if (document.getElementById('video')) document.getElementById('video').srcObject = null;
         }
 
-        function stopTimer() {
-            if (timerInterval) {
-                clearInterval(timerInterval);
-                timerInterval = null;
-                document.getElementById('btn-timer').innerText = `TIMER : off`;
-                document.getElementById('shutter').classList.remove('timer-active');
+        let currentModalType = "";
+        function showModal(type) {
+            currentModalType = type;
+            const msg = document.getElementById('modal-msg');
+            msg.innerText = type === 'RETAKE' ? "全ての画像を削除しますか？" : "データを破棄してHOMEに戻りますか？";
+            document.getElementById('custom-modal').style.display = 'flex';
+        }
+        function modalNo() { document.getElementById('custom-modal').style.display = 'none'; }
+        function modalYes() {
+            document.getElementById('custom-modal').style.display = 'none';
+            if (currentModalType === 'RETAKE') {
+                capturedImages = []; offsets = []; comments = [];
+                updateUI();
+            } else {
+                stopTimerLoop(); stopCamera();
+                capturedImages = []; offsets = []; comments = [];
+                updateUI(); nav('home');
             }
         }
 
@@ -250,21 +256,24 @@
             }
         }
 
-        async function handleFileSelect(e) {
+        function handleFileSelect(e) {
             const files = Array.from(e.target.files);
             capturedImages = []; offsets = []; comments = [];
-            for (const file of files) {
-                const data = await new Promise(res => {
-                    const r = new FileReader(); r.onload = x => res(x.target.result); r.readAsDataURL(file);
-                });
-                capturedImages.push(data); offsets.push({ x: 0, y: 0 }); comments.push([]);
-            }
-            alert(`${capturedImages.length}枚を読み込みました。`);
+            files.forEach(file => {
+                const r = new FileReader(); 
+                r.onload = x => {
+                    capturedImages.push(x.target.result); 
+                    offsets.push({ x: 0, y: 0 }); 
+                    comments.push([]);
+                    updateUI();
+                }; 
+                r.readAsDataURL(file);
+            });
         }
 
         function goPlayCheck() {
             if (capturedImages.length === 0) return alert("撮影データがありません。");
-            alert("Phase 2へ進みます。");
+            alert("Phase 2 (PLAY CHECK) へ進みます。");
         }
     </script>
 </body>
