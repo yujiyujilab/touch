@@ -3,59 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>TOUCH - Analog Feel Edition</title>
+    <title>TOUCH - Inertia & Layout Fix</title>
     <style>
         :root { --bg-color: #000; --text-color: #fff; --accent-color: #e63928; --btn-gray: #b3b3b3; }
         
-        /* 画面全体のスクロールを完全に禁止 */
         html, body { 
-            margin: 0; padding: 0; width: 100%; height: 100%; 
+            margin: 0; padding: 0; width: 100%; height: 100dvh; 
             overflow: hidden; position: fixed; 
             background: var(--bg-color); color: var(--text-color); 
-            font-family: sans-serif; 
-            touch-action: none; /* ブラウザ標準のズームやスクロールを無効化 */
+            font-family: sans-serif; touch-action: none;
         }
 
         .screen { 
-            display: none; width: 100vw; height: 100vh; 
+            display: none; width: 100vw; height: 100dvh; 
             flex-direction: column; align-items: center; 
-            box-sizing: border-box; padding-top: env(safe-area-inset-top);
+            box-sizing: border-box; 
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
         }
         .screen.active { display: flex; }
 
-        /* ビューアエリアを画面中央付近に安定させる */
+        /* ビューアエリア */
         .viewer-container { 
             width: 100vw; height: 75vw; 
             border-top: 2px solid #fff; border-bottom: 2px solid #fff; 
             margin-top: 5px; position: relative; overflow: hidden; background: #000;
-            touch-action: none;
         }
         #video, #onion-layer, #play-canvas { width: 100%; height: 100%; object-fit: cover; position: absolute; top:0; left:0; }
         #guide-overlay { position: absolute; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
         
-        .ui-row { display: flex; width: 92vw; justify-content: space-between; margin-top: 8px; gap: 6px; }
+        .ui-row { display: flex; width: 92vw; justify-content: space-between; margin-top: 10px; gap: 6px; }
         .control-btn { 
             border: 2px solid #fff; background: rgba(0,0,0,0.5); color: #fff; 
-            padding: 12px 5px; flex: 1; font-size: 0.75rem; cursor: pointer; 
+            padding: 10px 5px; flex: 1; font-size: 0.75rem; cursor: pointer; 
             font-weight: bold; border-radius: 4px;
         }
-        .counter-box { flex: 1; text-align: center; line-height: 2.8; font-size: 1.1rem; font-weight: bold; }
+        .counter-box { flex: 1; text-align: center; line-height: 2.5; font-size: 1.1rem; font-weight: bold; }
         
         #shutter { 
-            width: 80px; height: 80px; border-radius: 50%; 
+            width: 75px; height: 75px; border-radius: 50%; 
             background: var(--accent-color); border: 4px solid #000; 
             outline: 3px solid #fff; margin: 10px 0; cursor: pointer; 
         }
         .timer-running { animation: pulse 1s infinite; background: #fff !important; }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); background: var(--accent-color) !important; } 100% { transform: scale(1); } }
 
-        .nav-row { display: flex; width: 95vw; justify-content: space-between; margin-top: auto; padding-bottom: calc(15px + env(safe-area-inset-bottom)); }
+        /* ボタンを常に一番下に配置するためのコンテナ */
+        .nav-row { 
+            display: flex; width: 95vw; justify-content: space-between; 
+            margin-top: auto; /* これで最下部に押し出す */
+            margin-bottom: 15px; 
+        }
         .nav-btn { border: 2px solid #fff; background: none; color: #fff; width: 31%; padding: 14px 0; font-size: 0.7rem; cursor: pointer; font-weight: bold; }
 
-        .line-h { position: absolute; width: 100%; height: 1px; background: rgba(255,255,255,0.6); }
-        .line-v { position: absolute; height: 100%; width: 1px; background: rgba(255,255,255,0.6); }
-
-        /* モーダル */
         #custom-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; justify-content: center; align-items: center; }
         .modal-content { background: #333; padding: 25px; border-radius: 12px; text-align: center; width: 80%; max-width: 300px; border: 2px solid #fff; }
         .m-btn { padding: 12px 20px; border: none; margin: 10px; cursor: pointer; font-weight: bold; border-radius: 4px; }
@@ -65,12 +65,14 @@
         @keyframes flash-effect { 0% { opacity: 0.9; } 100% { opacity: 0; } }
     </style>
 </head>
-<body oncontextmenu="return false;"> <div id="home" class="screen active">
+<body oncontextmenu="return false;">
+
+    <div id="home" class="screen active">
         <h1 style="font-size: 3.5rem; margin-top: 15vh; letter-spacing: 0.1em;">TOUCH</h1>
-        <button class="home-btn" style="background:var(--accent-color); color:#fff; width:80%; padding:18px; margin:10px; font-weight:bold; border-radius:8px; border:none;" onclick="navToCamera()">CAPTURE</button>
-        <button class="home-btn" style="background:var(--btn-gray); color:#fff; width:80%; padding:18px; margin:10px; font-weight:bold; border-radius:8px; border:none;" onclick="document.getElementById('top-file-input').click()">IMPORT IMAGES</button>
+        <button class="home-btn" style="background:var(--accent-color); color:#fff; width:80%; padding:18px; margin:10px; font-weight:bold; border:none;" onclick="navToCamera()">CAPTURE</button>
+        <button class="home-btn" style="background:var(--btn-gray); color:#fff; width:80%; padding:18px; margin:10px; font-weight:bold; border:none;" onclick="document.getElementById('top-file-input').click()">IMPORT IMAGES</button>
         <input type="file" id="top-file-input" multiple accept="image/*" style="display:none" onchange="handleFileSelect(event)">
-        <button class="home-btn" style="background:var(--btn-gray); color:#fff; width:80%; padding:18px; margin:10px; font-weight:bold; border-radius:8px; border:none;" onclick="nav('library')">LIBRARY</button>
+        <button class="home-btn" style="background:var(--btn-gray); color:#fff; width:80%; padding:18px; margin:10px; font-weight:bold; border:none;" onclick="nav('library')">LIBRARY</button>
     </div>
 
     <div id="camera" class="screen">
@@ -116,7 +118,7 @@
         <div class="ui-row">
             <button class="control-btn" onclick="nav('pos-edit')">POS EDIT</button>
         </div>
-        <div class="nav-row" style="width:95vw;">
+        <div class="nav-row">
             <button class="nav-btn" style="width:48%" onclick="showModal('EXIT')">HOME (QUIT)</button>
             <button class="nav-btn" style="width:48%" onclick="saveToLibrary()">SAVE to LIBRARY</button>
         </div>
@@ -138,19 +140,20 @@
         let timerSec = 0, timerInterval = null, isTimerRunning = false;
         let loopSpeed = 0, loopInterval = null, guideMode = 0, isOnion = false;
         
-        // スワイプ慣性用の変数
-        let lastX = 0;
-        let moveAccumulator = 0;
-        const SENSITIVITY = 15; // この数値（ピクセル）動くごとに1コマ進む
+        // 慣性スクロール用の変数
+        let lastX = 0, moveAccumulator = 0, velocity = 0, lastMoveTime = 0;
+        let inertiaTimer = null;
+        const SENSITIVITY = 15; // 1コマ動くピクセル数
+        const FRICTION = 0.92; // 減衰率（1に近いほど長く回る）
 
         function nav(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
             if (id === 'playcheck') initPlayMode();
-            if (id === 'camera') prepareCameraUI(); else { stopLoop(); stopTimer(); }
+            if (id === 'camera') prepareCameraUI(); else { stopLoop(); stopTimer(); stopInertia(); }
         }
 
-        /* --- CAPTURE & CAMERA --- */
+        /* --- CAPTURE --- */
         async function navToCamera() { insertIndex = null; nav('camera'); }
         async function prepareCameraUI() {
             await startCamera();
@@ -159,8 +162,7 @@
             document.getElementById('cap-nav-retake').style.visibility = isAddMode ? 'hidden' : 'visible';
             document.getElementById('cap-nav-play').innerText = isAddMode ? 'BACK to PLAY CHECK' : 'PLAY CHECK';
             if (isAddMode && capturedImages.length > 0) {
-                isOnion = true;
-                updateOnionDisplay(capturedImages[insertIndex]);
+                isOnion = true; updateOnionDisplay(capturedImages[insertIndex]);
                 document.getElementById('btn-onion').innerText = "ONION : on";
             }
             updateCaptureUI();
@@ -174,23 +176,14 @@
             } catch (e) { alert("カメラを起動できません"); }
         }
         function stopCamera() { if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; } }
-
         function handleShutter() {
             if (timerSec === 0) captureFrame();
             else {
-                if (!isTimerRunning) {
-                    isTimerRunning = true;
-                    document.getElementById('shutter').classList.add('timer-running');
-                    captureFrame();
-                    timerInterval = setInterval(captureFrame, timerSec * 1000);
-                } else stopTimer();
+                if (!isTimerRunning) { isTimerRunning = true; document.getElementById('shutter').classList.add('timer-running'); captureFrame(); timerInterval = setInterval(captureFrame, timerSec * 1000); } 
+                else stopTimer();
             }
         }
-        function stopTimer() {
-            clearInterval(timerInterval); timerInterval = null; isTimerRunning = false;
-            document.getElementById('shutter').classList.remove('timer-running');
-        }
-
+        function stopTimer() { clearInterval(timerInterval); timerInterval = null; isTimerRunning = false; document.getElementById('shutter').classList.remove('timer-running'); }
         function captureFrame() {
             const v = document.getElementById('video');
             const b = document.getElementById('buffer');
@@ -200,181 +193,119 @@
             b.width = v.videoWidth; b.height = v.videoHeight;
             b.getContext('2d').drawImage(v, 0, 0);
             const data = b.toDataURL('image/jpeg', 0.8);
-            if (insertIndex !== null) {
-                capturedImages.splice(insertIndex + 1, 0, data);
-                offsets.splice(insertIndex + 1, 0, {x:0, y:0});
-                comments.splice(insertIndex + 1, 0, []);
-                insertIndex++;
-            } else {
-                capturedImages.push(data); offsets.push({x:0, y:0}); comments.push([]);
-            }
+            if (insertIndex !== null) { capturedImages.splice(insertIndex + 1, 0, data); offsets.splice(insertIndex + 1, 0, {x:0, y:0}); comments.splice(insertIndex + 1, 0, []); insertIndex++; } 
+            else { capturedImages.push(data); offsets.push({x:0, y:0}); comments.push([]); }
             if (isOnion) updateOnionDisplay(data);
             updateCaptureUI();
         }
-
         function updateCaptureUI() {
             const total = capturedImages.length;
             const currentPos = (insertIndex !== null) ? insertIndex + 1 : total;
             document.getElementById('cap-counter').innerText = `[ ${currentPos} / ${total} ]`;
         }
-        function updateOnionDisplay(imgSrc) {
-            const onion = document.getElementById('onion-layer');
-            onion.src = imgSrc; onion.style.display = 'block';
-        }
+        function updateOnionDisplay(imgSrc) { const onion = document.getElementById('onion-layer'); onion.src = imgSrc; onion.style.display = 'block'; }
 
-        /* --- PLAY CHECK --- */
-        function initPlayMode() {
-            if (insertIndex === null) currentIndex = capturedImages.length - 1;
-            drawFrame();
-            setupSwipe();
-        }
+        /* --- PLAY CHECK (Inertia Swipe) --- */
+        function initPlayMode() { if (insertIndex === null) currentIndex = capturedImages.length - 1; drawFrame(); setupSwipe(); }
         function drawFrame() {
             if (capturedImages.length === 0) return;
             const canvas = document.getElementById('play-canvas');
             const ctx = canvas.getContext('2d');
             const img = new Image();
-            img.onload = () => {
-                canvas.width = img.width; canvas.height = img.height;
-                ctx.drawImage(img, 0, 0);
-            };
+            img.onload = () => { canvas.width = img.width; canvas.height = img.height; ctx.drawImage(img, 0, 0); };
             img.src = capturedImages[currentIndex];
             document.getElementById('play-counter').innerText = `[ ${currentIndex + 1} / ${capturedImages.length} ]`;
         }
 
         function setupSwipe() {
             const area = document.getElementById('swipe-area');
-            
             area.addEventListener('touchstart', (e) => {
                 lastX = e.touches[0].clientX;
                 moveAccumulator = 0;
-                stopLoop();
+                velocity = 0;
+                lastMoveTime = Date.now();
+                stopLoop(); stopInertia();
             }, {passive: true});
 
             area.addEventListener('touchmove', (e) => {
+                const now = Date.now();
                 const currentX = e.touches[0].clientX;
                 const diff = currentX - lastX;
+                
+                velocity = diff / (now - lastMoveTime); // 瞬間速度
                 moveAccumulator += diff;
 
-                // 蓄積量が感度しきい値を超えたらコマを動かす
                 if (Math.abs(moveAccumulator) > SENSITIVITY) {
                     const steps = Math.floor(Math.abs(moveAccumulator) / SENSITIVITY);
-                    const direction = moveAccumulator > 0 ? -1 : 1;
-                    
-                    currentIndex = (currentIndex + (direction * steps) + capturedImages.length) % capturedImages.length;
+                    currentIndex = (currentIndex + (moveAccumulator > 0 ? -steps : steps) + capturedImages.length) % capturedImages.length;
                     drawFrame();
-                    
-                    // 余った移動量を残して次に繋げる（アナログ感の肝）
                     moveAccumulator = moveAccumulator % SENSITIVITY;
                 }
-                lastX = currentX;
+                lastX = currentX; lastMoveTime = now;
             }, {passive: true});
+
+            area.addEventListener('touchend', () => {
+                if (Math.abs(velocity) > 0.5) { // 一定以上の速さで離したら慣性開始
+                    startInertia();
+                }
+            });
         }
 
-        function stepFrame(dir) {
-            stopLoop();
-            currentIndex = (currentIndex + dir + capturedImages.length) % capturedImages.length;
-            drawFrame();
+        function startInertia() {
+            stopInertia();
+            inertiaTimer = setInterval(() => {
+                moveAccumulator += velocity * 16; // 16msあたりの移動量
+                velocity *= FRICTION; // 減速
+
+                if (Math.abs(moveAccumulator) > SENSITIVITY) {
+                    const steps = Math.floor(Math.abs(moveAccumulator) / SENSITIVITY);
+                    currentIndex = (currentIndex + (moveAccumulator > 0 ? -steps : steps) + capturedImages.length) % capturedImages.length;
+                    drawFrame();
+                    moveAccumulator = moveAccumulator % SENSITIVITY;
+                }
+                if (Math.abs(velocity) < 0.1) stopInertia();
+            }, 16);
         }
+        function stopInertia() { clearInterval(inertiaTimer); inertiaTimer = null; }
+
+        function stepFrame(dir) { stopLoop(); stopInertia(); currentIndex = (currentIndex + dir + capturedImages.length) % capturedImages.length; drawFrame(); }
         function cycleLoopSpeed() {
             const speeds = [0, 1, 2, 4];
             loopSpeed = speeds[(speeds.indexOf(loopSpeed) + 1) % speeds.length];
             document.getElementById('btn-loop').innerText = `LOOP : ${loopSpeed === 0 ? 'off' : 'x' + loopSpeed}`;
             stopLoop();
-            if (loopSpeed > 0) {
-                loopInterval = setInterval(() => {
-                    currentIndex = (currentIndex + 1) % capturedImages.length;
-                    drawFrame();
-                }, 1000 / (loopSpeed * 5));
-            }
+            if (loopSpeed > 0) loopInterval = setInterval(() => { currentIndex = (currentIndex + 1) % capturedImages.length; drawFrame(); }, 1000 / (loopSpeed * 5));
         }
         function stopLoop() { clearInterval(loopInterval); loopInterval = null; }
-        function deleteCurrentFrame() {
-            if (capturedImages.length <= 1) return alert("最後の1枚は削除できません。");
-            capturedImages.splice(currentIndex, 1);
-            offsets.splice(currentIndex, 1); comments.splice(currentIndex, 1);
-            currentIndex = Math.min(currentIndex, capturedImages.length - 1);
-            drawFrame();
-        }
+        function deleteCurrentFrame() { if (capturedImages.length <= 1) return; capturedImages.splice(currentIndex, 1); offsets.splice(currentIndex, 1); comments.splice(currentIndex, 1); currentIndex = Math.min(currentIndex, capturedImages.length - 1); drawFrame(); }
         function addAfterThis() { insertIndex = currentIndex; nav('camera'); }
 
         /* --- UI UTILS --- */
         function toggleGuide() {
             guideMode = (guideMode + 1) % 3;
-            const g = document.getElementById('guide-overlay');
-            const b = document.getElementById('btn-guide');
+            const g = document.getElementById('guide-overlay'), b = document.getElementById('btn-guide');
             g.innerHTML = "";
             if (guideMode === 0) b.innerText = "GUIDE : off";
-            else if (guideMode === 1) {
-                b.innerText = "GUIDE : 360";
-                [25, 50, 75].forEach(p => g.innerHTML += `<div class="line-h" style="top:${p}%"></div>`);
-            } else {
-                b.innerText = "GUIDE : OBJ";
-                [33, 66].forEach(p => { 
-                    g.innerHTML += `<div class="line-h" style="top:${p}%"></div><div class="line-v" style="left:${p}%"></div>`; 
-                });
-            }
+            else if (guideMode === 1) { b.innerText = "GUIDE : 360"; [25, 50, 75].forEach(p => g.innerHTML += `<div class="line-h" style="top:${p}%"></div>`); } 
+            else { b.innerText = "GUIDE : OBJ"; [33, 66].forEach(p => { g.innerHTML += `<div class="line-h" style="top:${p}%"></div><div class="line-v" style="left:${p}%"></div>`; }); }
         }
         function toggleOnion() {
-            isOnion = !isOnion;
-            document.getElementById('btn-onion').innerText = `ONION : ${isOnion ? 'on' : 'off'}`;
-            if (isOnion && capturedImages.length > 0) {
-                const targetIdx = (insertIndex !== null) ? insertIndex : capturedImages.length - 1;
-                updateOnionDisplay(capturedImages[targetIdx]);
-            } else {
-                document.getElementById('onion-layer').style.display = 'none';
-            }
+            isOnion = !isOnion; document.getElementById('btn-onion').innerText = `ONION : ${isOnion ? 'on' : 'off'}`;
+            if (isOnion && capturedImages.length > 0) updateOnionDisplay(capturedImages[(insertIndex !== null) ? insertIndex : capturedImages.length - 1]);
+            else document.getElementById('onion-layer').style.display = 'none';
         }
-        function cycleTimerSetting() {
-            const t = [0, 2, 5, 10];
-            timerSec = t[(t.indexOf(timerSec) + 1) % t.length];
-            document.getElementById('btn-timer').innerText = `TIMER : ${timerSec === 0 ? 'off' : timerSec + 's'}`;
-        }
+        function cycleTimerSetting() { const t = [0, 2, 5, 10]; timerSec = t[(t.indexOf(timerSec) + 1) % t.length]; document.getElementById('btn-timer').innerText = `TIMER : ${timerSec === 0 ? 'off' : timerSec + 's'}`; }
         async function handleFileSelect(e) {
             const files = Array.from(e.target.files);
-            for (const file of files) {
-                const data = await new Promise(res => {
-                    const r = new FileReader(); r.onload = x => res(x.target.result); r.readAsDataURL(file);
-                });
-                capturedImages.push(data); offsets.push({x:0, y:0}); comments.push([]);
-            }
-            updateCaptureUI(); alert(`${files.length}枚読み込みました。`);
+            for (const file of files) { const data = await new Promise(res => { const r = new FileReader(); r.onload = x => res(x.target.result); r.readAsDataURL(file); }); capturedImages.push(data); offsets.push({x:0, y:0}); comments.push([]); }
+            updateCaptureUI();
         }
-
-        /* --- SYSTEM --- */
-        let currentModalType = "";
-        function showModal(type) {
-            currentModalType = type;
-            const msg = document.getElementById('modal-msg');
-            msg.innerText = type === 'RETAKE' ? "全ての画像を削除しますか？" : "データを破棄してHOMEに戻りますか？";
-            document.getElementById('custom-modal').style.display = 'flex';
-        }
+        function showModal(type) { currentModalType = type; const msg = document.getElementById('modal-msg'); msg.innerText = type === 'RETAKE' ? "全ての画像を削除しますか？" : "データを破棄してHOMEに戻りますか？"; document.getElementById('custom-modal').style.display = 'flex'; }
         function modalNo() { document.getElementById('custom-modal').style.display = 'none'; }
-        function modalYes() {
-            document.getElementById('custom-modal').style.display = 'none';
-            if (currentModalType === 'RETAKE') {
-                capturedImages = []; offsets = []; comments = []; updateCaptureUI();
-            } else {
-                capturedImages = []; offsets = []; comments = []; stopCamera(); nav('home');
-            }
-        }
-        function cancelLastFrame() {
-            if (capturedImages.length > 0) {
-                const targetIdx = (insertIndex !== null) ? insertIndex : capturedImages.length - 1;
-                capturedImages.splice(targetIdx, 1);
-                offsets.splice(targetIdx, 1);
-                comments.splice(targetIdx, 1);
-                if (insertIndex !== null) insertIndex--;
-                updateCaptureUI();
-            }
-        }
-        function goPlayCheck() {
-            if (capturedImages.length === 0) return alert("データがありません");
-            nav('playcheck');
-        }
-        function saveToLibrary() {
-            const name = prompt("プロジェクト名を付けて保存してください", "project_01");
-            if (name) { alert(name + " を保存しました。"); nav('home'); }
-        }
+        function modalYes() { document.getElementById('custom-modal').style.display = 'none'; if (currentModalType === 'RETAKE') { capturedImages = []; offsets = []; comments = []; updateCaptureUI(); } else { capturedImages = []; offsets = []; comments = []; stopCamera(); nav('home'); } }
+        function cancelLastFrame() { if (capturedImages.length > 0) { const targetIdx = (insertIndex !== null) ? insertIndex : capturedImages.length - 1; capturedImages.splice(targetIdx, 1); offsets.splice(targetIdx, 1); comments.splice(targetIdx, 1); if (insertIndex !== null) insertIndex--; updateCaptureUI(); } }
+        function goPlayCheck() { if (capturedImages.length === 0) return; nav('playcheck'); }
+        function saveToLibrary() { const name = prompt("保存名", "project_01"); if (name) { alert("保存しました"); nav('home'); } }
     </script>
 </body>
 </html>
