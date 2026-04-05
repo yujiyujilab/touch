@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>TOUCH ULTIMATE - Phase 1.1</title>
+    <title>TOUCH - Phase 1 Stable</title>
     <style>
         :root { --bg-color: #000; --text-color: #fff; --accent-color: #e63928; --btn-gray: #b3b3b3; }
         body { margin: 0; padding: 0; background: var(--bg-color); color: var(--text-color); font-family: sans-serif; overflow: hidden; -webkit-user-select: none; }
@@ -17,22 +17,20 @@
         .btn-capture { background: var(--accent-color); color: #fff; }
         .btn-gray { background: var(--btn-gray); color: #fff; }
 
-        /* CAPTURE - サイズを以前の仕様(4:3ベース)に調整 */
-        #viewer-area { width: 100vw; height: 75vw; border-top: 2px solid #fff; border-bottom: 2px solid #fff; margin-top: 10px; position: relative; overflow: hidden; background: #000; }
-        #video, #onion-layer { width: 100%; height: 100%; object-fit: cover; position: absolute; }
+        /* CAPTURE */
+        #viewer-area { width: 100vw; height: 75vw; border-top: 2px solid #fff; border-bottom: 2px solid #fff; margin-top: 10px; position: relative; overflow: hidden; background: #222; }
+        #video, #onion-layer { width: 100%; height: 100%; object-fit: cover; position: absolute; top:0; left:0; }
         #guide-overlay { position: absolute; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
         
-        /* シャッター演出用の幕 */
         #shutter-curtain { position: absolute; width: 100%; height: 100%; background: #000; opacity: 0; pointer-events: none; z-index: 20; }
         .flash { animation: flash-effect 0.15s ease-out; }
-        @keyframes flash-effect { 0% { opacity: 0.8; } 100% { opacity: 0; } }
+        @keyframes flash-effect { 0% { opacity: 0.9; } 100% { opacity: 0; } }
 
         .ui-row { display: flex; width: 90vw; justify-content: space-between; margin-top: 12px; gap: 10px; }
-        .control-btn { border: 2px solid #fff; background: none; color: #fff; padding: 8px 0; flex: 1; font-size: 0.8rem; cursor: pointer; }
+        .control-btn { border: 2px solid #fff; background: rgba(0,0,0,0.5); color: #fff; padding: 8px 0; flex: 1; font-size: 0.8rem; cursor: pointer; }
         .counter-box { flex: 1; text-align: center; line-height: 2.2; font-size: 1rem; font-weight: bold; }
         
-        #shutter { width: 85px; height: 85px; border-radius: 50%; background: var(--accent-color); border: 4px solid #000; outline: 3px solid #fff; margin: 15px 0; cursor: pointer; transition: transform 0.1s; }
-        #shutter:active { transform: scale(0.9); }
+        #shutter { width: 85px; height: 85px; border-radius: 50%; background: var(--accent-color); border: 4px solid #000; outline: 3px solid #fff; margin: 15px 0; cursor: pointer; }
         #shutter.timer-active { animation: pulse 1s infinite; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0px rgba(230, 57, 40, 0.7); } 100% { box-shadow: 0 0 0 20px rgba(230, 57, 40, 0); } }
 
@@ -47,7 +45,7 @@
 
     <div id="home" class="screen active">
         <h1>TOUCH</h1>
-        <button class="home-btn btn-capture" onclick="nav('camera')">CAPTURE</button>
+        <button class="home-btn btn-capture" onclick="navToCamera()">CAPTURE</button>
         <button class="home-btn btn-gray" onclick="document.getElementById('top-file-input').click()">IMPORT IMAGES</button>
         <input type="file" id="top-file-input" multiple accept="image/*" style="display:none" onchange="handleFileSelect(event)">
         <button class="home-btn btn-gray" onclick="nav('library')">LIBRARY</button>
@@ -74,11 +72,11 @@
         <div id="shutter" onclick="onShutterClick()"></div>
 
         <div class="ui-row" style="justify-content: flex-start;">
-            <button class="control-btn" style="max-width: 100px; border-color: #aaa; color: #aaa;" onclick="cancelLastFrame()">CANCEL</button>
+            <button class="control-btn" style="max-width: 100px; border-color: #666; color: #666;" onclick="cancelLastFrame()">CANCEL</button>
         </div>
 
         <div class="nav-row">
-            <button class="nav-btn" onclick="resetAndNav('home')">HOME</button>
+            <button class="nav-btn" onclick="exitCamera()">HOME</button>
             <button class="nav-btn" onclick="retakeAll()">RETAKE ALL</button>
             <button class="nav-btn" onclick="goPlayCheck()">PLAY CHECK</button>
         </div>
@@ -89,45 +87,74 @@
     <script>
         let capturedImages = [], offsets = [], comments = [];
         let guideMode = 0, isOnion = false, timerInterval = null;
+        let stream = null;
 
+        // 画面遷移の基本
         function nav(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
-            if (id === 'camera') initCamera();
-            if (timerInterval) stopTimer();
         }
 
-        function resetAndNav(id) {
+        // カメラ画面へ行く
+        async function navToCamera() {
+            nav('camera');
+            await startCamera();
+        }
+
+        // カメラ画面から出る
+        function exitCamera() {
             if (capturedImages.length > 0 && !confirm("データを破棄して戻りますか？")) return;
+            stopTimer();
+            stopCamera();
             capturedImages = []; offsets = []; comments = [];
-            nav(id);
+            updateUI();
+            nav('home');
         }
 
-        async function initCamera() {
+        // カメラ起動ロジック
+        async function startCamera() {
             const v = document.getElementById('video');
-            if (v.srcObject && v.srcObject.active) return; 
+            if (stream && stream.active) return; // 既に動いていれば何もしない
+
             try {
-                const s = await navigator.mediaDevices.getUserMedia({ 
+                stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } 
                 });
-                v.srcObject = s;
-                v.onloadedmetadata = () => v.play();
-            } catch (e) { alert("カメラの使用を許可してください。"); }
+                v.srcObject = stream;
+                // 明示的にplayを呼ぶ（iOS対策）
+                await v.play();
+                console.log("Camera started");
+            } catch (e) {
+                alert("カメラの起動に失敗しました。設定を確認してください。");
+            }
         }
 
+        // カメラ停止ロジック
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            const v = document.getElementById('video');
+            v.srcObject = null;
+        }
+
+        // 撮影
         function captureFrame() {
             const v = document.getElementById('video');
             const b = document.getElementById('buffer');
-            const ctx = b.getContext('2d');
             
             // シャッター演出
             const curtain = document.getElementById('shutter-curtain');
             curtain.classList.remove('flash');
-            void curtain.offsetWidth; // 強制リフロー
+            void curtain.offsetWidth; // リフロー
             curtain.classList.add('flash');
 
+            // 映像が有効かチェック
+            if (v.videoWidth === 0) return;
+
             b.width = v.videoWidth; b.height = v.videoHeight;
-            ctx.drawImage(v, 0, 0);
+            b.getContext('2d').drawImage(v, 0, 0);
             
             const data = b.toDataURL('image/jpeg', 0.8);
             capturedImages.push(data);
@@ -144,20 +171,20 @@
         function toggleTimer() {
             if (timerInterval) { stopTimer(); return; }
             const sec = prompt("撮影間隔（秒）", "2");
-            if (sec && !isNaN(sec) && sec > 0) startTimer(parseFloat(sec));
-        }
-
-        function startTimer(sec) {
-            timerInterval = setInterval(captureFrame, sec * 1000);
-            document.getElementById('btn-timer').innerText = `TIMER : ${sec}s`;
-            document.getElementById('shutter').classList.add('timer-active');
+            if (sec && !isNaN(sec) && sec > 0) {
+                timerInterval = setInterval(captureFrame, sec * 1000);
+                document.getElementById('btn-timer').innerText = `TIMER : ${sec}s`;
+                document.getElementById('shutter').classList.add('timer-active');
+            }
         }
 
         function stopTimer() {
-            clearInterval(timerInterval);
-            timerInterval = null;
-            document.getElementById('btn-timer').innerText = `TIMER : off`;
-            document.getElementById('shutter').classList.remove('timer-active');
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+                document.getElementById('btn-timer').innerText = `TIMER : off`;
+                document.getElementById('shutter').classList.remove('timer-active');
+            }
         }
 
         function cancelLastFrame() {
@@ -167,25 +194,12 @@
             }
         }
 
+        // RETAKE ALL: 映像はそのまま、中身だけ消す
         function retakeAll() {
-            if (confirm("全ての画像を削除して最初から撮り直しますか？")) {
+            if (confirm("全ての画像を削除しますか？（カメラは継続します）")) {
                 capturedImages = []; offsets = []; comments = [];
                 updateUI();
-                // カメラは止めず、プレビューを維持
             }
-        }
-
-        async function handleFileSelect(e) {
-            const files = Array.from(e.target.files);
-            // ファイル名で勝手にソートされないよう、選択順に処理
-            capturedImages = []; offsets = []; comments = [];
-            for (const file of files) {
-                const data = await new Promise(res => {
-                    const r = new FileReader(); r.onload = x => res(x.target.result); r.readAsDataURL(file);
-                });
-                capturedImages.push(data); offsets.push({ x: 0, y: 0 }); comments.push([]);
-            }
-            alert(`${capturedImages.length}枚を読み込みました。`);
         }
 
         function updateUI() {
@@ -216,9 +230,21 @@
             } else {
                 b.innerText = "GUIDE : OBJ";
                 [33, 66].forEach(p => { 
-                    g.innerHTML += `<div class="line-h" style="top:${p}%"></div><div class="line-v" style="left:${p}%"></div>`; 
+                    g.innerHTML += `<div class="line-h" style="top:${p}%"></div><div class="line-v" style="left:${p}%"></div>`); 
                 });
             }
+        }
+
+        async function handleFileSelect(e) {
+            const files = Array.from(e.target.files);
+            capturedImages = []; offsets = []; comments = [];
+            for (const file of files) {
+                const data = await new Promise(res => {
+                    const r = new FileReader(); r.onload = x => res(x.target.result); r.readAsDataURL(file);
+                });
+                capturedImages.push(data); offsets.push({ x: 0, y: 0 }); comments.push([]);
+            }
+            alert(`${capturedImages.length}枚を読み込みました。`);
         }
 
         function goPlayCheck() {
